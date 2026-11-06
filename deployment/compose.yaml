@@ -1,0 +1,62 @@
+# Preparation only: starts the licensed IRIS engine, not a configured application.
+# Load the authorized build locally. This file never downloads or builds images.
+name: ${CHRONOS_PROJECT:?Choose a new unique Chronos Compose project name}
+services:
+  iris:
+    image: ${CHRONOS_IMAGE:?Set the locally loaded AI Hub 154 image ID or digest}
+    # Stable OS identity across container replacements using the same durable data.
+    hostname: chronos-iris
+    pull_policy: never
+    restart: "no"
+    cpus: 2.0
+    mem_limit: 4g
+    stop_grace_period: 90s
+    environment:
+      ISC_DATA_DIRECTORY: /durable/iris
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      # Pristine full bundle for internal verification; source aliases below
+      # preserve the existing guard/loader paths without a writable source tree.
+      - type: bind
+        source: ${CHRONOS_APP:?Set the verified source bundle path}
+        target: /opt/chronos/bundle
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CHRONOS_APP:?Set the verified source bundle path}/src
+        target: /opt/chronos/src
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CHRONOS_APP:?Set the verified source bundle path}/deployment
+        target: /opt/chronos/deployment
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CHRONOS_APP:?Set the verified source bundle path}/tools
+        target: /opt/chronos/tools
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CHRONOS_DATA:?Set a new dedicated persistent data directory}
+        target: /durable
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CHRONOS_GUARD_STATE:?Set a separate dedicated guard state directory}
+        target: /opt/chronos/runtime
+        bind:
+          create_host_path: false
+    # Engine health is deliberately separate from application/provider readiness.
+    # No ports are published. A reviewed loopback-only web configuration follows
+    # native setup; this base never starts the guard, model or request allowance.
+    healthcheck:
+      test: ["CMD", "/usr/bin/python3", "-B", "/opt/chronos/deployment/native_health.py", "engine"]
+      interval: 30s
+      timeout: 25s
+      start_period: 120s
+      retries: 3

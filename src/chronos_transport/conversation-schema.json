@@ -1,0 +1,80 @@
+{
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "enum": [
+        "chronos.case-conversation.v1"
+      ]
+    },
+    "conversation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9_.-]{1,128}$"
+    },
+    "turn_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9_.-]{1,128}$"
+    },
+    "context_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "minLength": 64,
+      "maxLength": 64
+    },
+    "intent": {
+      "type": "string",
+      "enum": [
+        "ANSWER",
+        "PREFERENCE_PROPOSAL",
+        "RESULT_QUERY",
+        "APPROVAL_REDIRECT"
+      ]
+    },
+    "answer": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "source_ids": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9_.-]{1,128}$"
+      }
+    },
+    "preference": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "CHEAPEST_ON_TIME",
+            "EARLIEST_ALLOWED"
+          ]
+        }
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "conversation_id",
+    "turn_id",
+    "context_digest",
+    "intent",
+    "answer",
+    "source_ids",
+    "preference"
+  ],
+  "additionalProperties": false
+}

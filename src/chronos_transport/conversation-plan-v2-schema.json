@@ -1,0 +1,96 @@
+{
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "enum": [
+        "chronos.case-explanation-plan.v2"
+      ]
+    },
+    "conversation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9_.-]{1,128}$"
+    },
+    "turn_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9_.-]{1,128}$"
+    },
+    "context_digest": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "catalog_digest": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "detail": {
+      "type": "string",
+      "enum": [
+        "concise",
+        "detailed"
+      ]
+    },
+    "preference": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "CHEAPEST_ON_TIME",
+            "EARLIEST_ALLOWED"
+          ]
+        }
+      ]
+    },
+    "renderer_version": {
+      "type": "string",
+      "enum": [
+        "chronos.explanation-renderer.v2"
+      ]
+    },
+    "topics": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "DECISION",
+          "COMPARISON",
+          "OPERATION_STATUS",
+          "PHYSICAL_DELIVERY",
+          "PREFERENCE_CHANGE",
+          "APPROVAL_REQUIREMENTS",
+          "CLARIFY",
+          "CHAT_EFFECT",
+          "CURRENT_REVIEW",
+          "DECISION_CHANGE",
+          "DESTINATION_SIMULATION"
+        ]
+      }
+    }
+  },
+  "required": [
+    "schema",
+    "conversation_id",
+    "turn_id",
+    "context_digest",
+    "catalog_digest",
+    "detail",
+    "preference",
+    "renderer_version",
+    "topics"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,1 @@
+"""Read-only historical decision projection; native integration pending."""

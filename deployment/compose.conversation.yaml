@@ -1,0 +1,44 @@
+# Case conversation guard. See JURY-ROUTE.md for the tested local C2v2 profile.
+# Prepare the pinned model separately before starting this configuration.
+# Merge with compose.yaml and the selected local model configuration explicitly.
+services:
+  iris:
+    volumes:
+      - type: bind
+        source: ${CHRONOS_CONVERSATION_STATE:?Set a new dedicated conversation state directory, different from CHRONOS_GUARD_STATE}
+        target: /opt/chronos/conversation-runtime
+        bind:
+          create_host_path: false
+  conversation-guard:
+    profiles: [conversation]
+    image: ${CHRONOS_IMAGE:?Set the locally loaded AI Hub 154 image ID or digest}
+    pull_policy: never
+    network_mode: service:iris
+    depends_on:
+      iris:
+        condition: service_healthy
+    restart: "no"
+    cpus: 0.5
+    mem_limit: 256m
+    user: "51773:51773"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    read_only: true
+    healthcheck:
+      disable: true
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+    entrypoint: [/usr/bin/python3, -B, /opt/chronos/src/chronos_transport/guard.py]
+    command: [--state-dir, /opt/chronos/runtime/conversation-provider, --contract, "${CHRONOS_CONVERSATION_CONTRACT:-c1}", --listen-port, "11514", --profile, /opt/chronos/runtime/conversation-provider/profile.json]
+    volumes:
+      - type: bind
+        source: ${CHRONOS_APP:?Set the verified source bundle path}/src
+        target: /opt/chronos/src
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CHRONOS_CONVERSATION_STATE:?Set a dedicated conversation state directory}
+        target: /opt/chronos/runtime
+        bind:
+          create_host_path: false

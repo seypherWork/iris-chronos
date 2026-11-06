@@ -1,0 +1,90 @@
+# Local provider for the IRIS 154 jury route. See EVIDENCE.md for observed runs.
+# Merge with compose.yaml explicitly. Never publish 11434 or 11512.
+services:
+  model:
+    profiles: [local-model]
+    image: ${CHRONOS_OLLAMA_IMAGE:?Set a locally loaded official Ollama image ID or digest}
+    pull_policy: never
+    network_mode: service:iris
+    depends_on:
+      iris:
+        condition: service_healthy
+    restart: "no"
+    # Explicit hardware budget: no GPU passthrough or automatic model download.
+    cpus: ${CHRONOS_MODEL_CPUS:?Choose the local model CPU limit}
+    mem_limit: ${CHRONOS_MODEL_MEMORY:?Choose a model memory limit, for example 8g}
+    user: "51773:51773"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      HOME: /model-home
+      OLLAMA_HOST: 127.0.0.1:11434
+      OLLAMA_MODELS: /models
+      OLLAMA_NO_CLOUD: "1"
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      # Observed on pinned Ollama 0.40.13: keep warmup and inference on the
+      # same non-mmap loader. This is not a host RAM or VRAM safety limit.
+      LLAMA_ARG_LOAD_MODE: "none"
+      # Pinned 0.40.13 defaults to an 8 GiB CPU prompt cache. Lab277 verified
+      # disabling that cache prevents its observed 4 GiB cgroup OOM.
+      # This does not disable model/context memory or guarantee any RAM budget.
+      LLAMA_ARG_CACHE_RAM: "0"
+    entrypoint: [/bin/ollama]
+    command: [serve]
+    volumes:
+      - type: bind
+        source: ${CHRONOS_MODELS:?Set a dedicated existing model directory}
+        target: /models
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CHRONOS_MODEL_HOME:?Set a separate existing Ollama home directory}
+        target: /model-home
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: [CMD, /bin/ollama, list]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+  guard:
+    profiles: [local-model]
+    # Reuse the licensed local image for OS Python; override its entrypoint.
+    # This service does NOT start a second IRIS engine.
+    image: ${CHRONOS_IMAGE:?Set the locally loaded AI Hub 154 image ID or digest}
+    pull_policy: never
+    network_mode: service:iris
+    depends_on:
+      iris:
+        condition: service_healthy
+      model:
+        condition: service_healthy
+    restart: "no"
+    cpus: 0.5
+    mem_limit: 256m
+    user: "51773:51773"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    read_only: true
+    # No IRIS engine here: do not inherit the image engine healthcheck.
+    healthcheck:
+      disable: true
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+    entrypoint: [/usr/bin/python3, -B, /opt/chronos/src/chronos_transport/guard.py]
+    command: [--state-dir, /opt/chronos/runtime/local-provider, --contract, e1, --profile, /opt/chronos/runtime/local-provider/profile.json]
+    volumes:
+      - type: bind
+        source: ${CHRONOS_APP:?Set the verified source bundle path}/src
+        target: /opt/chronos/src
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CHRONOS_GUARD_STATE:?Set a dedicated guard state directory}
+        target: /opt/chronos/runtime
+        bind:
+          create_host_path: false

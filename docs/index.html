@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; media-src 'self'; base-uri 'none'; form-action 'none'">
+<title>IRIS Chronos · Jury walkthrough</title>
+<style>
+  :root {color-scheme:dark;--ink:#fff4e5;--muted:#d8c2aa;--accent:#ffbf6c;--line:#6c4b32;--panel:#211914}
+  * {box-sizing:border-box}
+  html {scroll-behavior:auto}
+  body {margin:0;background:radial-gradient(ellipse at top right,#352317,transparent 55%),#110e0c;color:var(--ink);font:1rem/1.55 system-ui,sans-serif}
+  main {max-width:70rem;margin:auto;padding:clamp(1.25rem,4vw,3rem)}
+  header {margin-bottom:2rem;max-width:49rem}
+  .brand {font-size:.76rem;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--accent)}
+  h1,h2,p {margin-top:0}
+  h1 {font-size:clamp(2.4rem,6vw,4.6rem);line-height:1.01;letter-spacing:-.055em;margin-bottom:1rem;text-wrap:balance}
+  h2 {font-size:1.4rem;line-height:1.2;margin-bottom:.7rem}
+  p {color:var(--muted);margin-bottom:1rem}
+  a {color:var(--accent);text-underline-offset:.2em}
+  a:focus-visible,summary:focus-visible,video:focus-visible {outline:2px solid var(--accent);outline-offset:4px}
+  .actions {display:flex;gap:.65rem;flex-wrap:wrap}
+  .button {display:inline-block;padding:.65rem .95rem;border:1px solid var(--line);border-radius:.55rem;font-weight:700;text-decoration:none}
+  .button.primary {color:#1c1007;background:var(--accent);border-color:var(--accent)}
+  section {padding:clamp(1rem,3vw,1.5rem);margin:1rem 0;background:var(--panel);border:1px solid var(--line);border-radius:1rem;scroll-margin-top:1rem}
+  .walkthrough {display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:1rem}
+  .walkthrough section {margin:0}
+  video {display:block;width:100%;aspect-ratio:16/9;background:#100b08;border:1px solid var(--line);border-radius:.65rem;margin:.85rem 0}
+  details {padding:.75rem 0;border-top:1px solid var(--line)}
+  summary {cursor:pointer;font-weight:700;color:var(--accent)}
+  details p {margin:.5rem 0 .25rem}
+  code {overflow-wrap:anywhere}
+  @media (max-width:50rem) {.walkthrough {grid-template-columns:1fr}}
+</style>
+<main>
+  <header>
+    <p class="brand">IRIS Chronos · Recorded jury walkthrough</p>
+    <h1>Recover a shipment without sending it twice.</h1>
+    <p>An IRIS AI Hub agent interprets the request. Chronos checks the options. The operator approves one recovery and can reopen its receipt.</p>
+    <nav class="actions" aria-label="Jury walkthrough">
+      <a class="button primary" href="#watch">Watch in 62 seconds</a>
+      <a class="button" href="#proof">Compare the receipts</a>
+      <a class="button" href="#live">Run locally on IRIS 154</a>
+    </nav>
+  </header>
+  <div class="walkthrough">
+    <section id="watch" aria-labelledby="watch-title">
+      <h2 id="watch-title">See the recovery</h2>
+      <p>English captions and screenshots from the 407r2 run on IRIS 154. The synthetic destination accepts B before the browser loses the reply.</p>
+      <video controls playsinline preload="metadata" aria-label="62-second recorded Chronos recovery"><source src="chronos-proof.mp4" type="video/mp4"></video>
+      <a href="chronos-proof.mp4" download>Download MP4</a>
+    </section>
+    <section id="proof" aria-labelledby="proof-title">
+      <h2 id="proof-title">Check the result</h2>
+      <details open>
+        <summary>Lost reply · one B recovery</summary>
+        <p>IRIS and the independent destination agree. Reload opens the same operation, attempt and acceptance reference.</p>
+        <p>Reference digest at confirmation, after reload and at the destination <code>06df5d2829240785</code>.</p>
+      </details>
+      <details>
+        <summary>HTTP 503 · one A recovery</summary>
+        <p>A local fixture returns 503 for the original. Chronos reads its definitive closure. One reconciliation takes the same queued recovery from UNKNOWN to ACCEPTED.</p>
+        <p>Reference digest after reconciliation, after reload and at the destination <code>c23faf61d3472af4</code>.</p>
+      </details>
+      <details>
+        <summary>Visual Trace · original AI Hub response</summary>
+        <p>The recorded message body shows 2,164 tokens and a 2,479 ms SDK call interval. <a href="visual-trace.png">Open the IRIS graph</a>.</p>
+      </details>
+    </section>
+  </div>
+  <section id="live" aria-labelledby="live-title">
+    <h2 id="live-title">Run the case on your IRIS instance</h2>
+    <p>Open the <a href="https://github.com/seypherWork/iris-chronos/blob/main/deployment/JURY-ROUTE.md#short-acceptance-checklist">jury acceptance checklist</a> in the English installation guide. Prepare IRIS AI Hub Community 2026.3.0AI.154.0 x64 and the pinned local Qwen model. Open <code>queue_inventory</code>, ask why B was selected, confirm once and reopen the receipt.</p>
+    <p>This page presents recorded evidence from synthetic cases. Live requests run in the installed IRIS instance.</p>
+  </section>
+</main>
+</html>

@@ -1,0 +1,65 @@
+{
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": [
+        "chronos.preference-extraction.v1"
+      ]
+    },
+    "interpreted_preference": {
+      "type": "string",
+      "enum": [
+        "CHEAPEST_ON_TIME",
+        "EARLIEST_ALLOWED",
+        "UNRESOLVED"
+      ]
+    },
+    "reason_code": {
+      "type": "string",
+      "enum": [
+        "PREFERENCE_MATCH",
+        "CONTEXT_AMBIGUOUS",
+        "CONFLICTING_EVIDENCE",
+        "CONTEXT_INCOMPLETE"
+      ]
+    },
+    "source_ids": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      }
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "clarification": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        }
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "interpreted_preference",
+    "reason_code",
+    "source_ids",
+    "rationale",
+    "clarification"
+  ],
+  "additionalProperties": false
+}

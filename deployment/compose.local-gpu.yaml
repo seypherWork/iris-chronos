@@ -1,0 +1,12 @@
+# OPTIONAL. Merge after compose.yaml and compose.local-model.yaml.
+# The local jury route was exercised on one NVIDIA workstation; see EVIDENCE.md.
+# Authorize the selected device before starting; there is no VRAM quota here.
+services:
+  model:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${CHRONOS_GPU_DEVICE_ID:?Select one authorized NVIDIA device ID}"]
+              capabilities: [gpu]

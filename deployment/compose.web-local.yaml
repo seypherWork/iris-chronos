@@ -1,0 +1,9 @@
+# Explicit local-browser opt-in; base Compose publishes no ports.
+# This exposes the IRIS web gateway on this PC, not just one URL path.
+services:
+  iris:
+    ports:
+      - target: 52773
+        published: "${CHRONOS_WEB_PORT:?Choose an unused loopback web port matching the configured origin}"
+        host_ip: 127.0.0.1
+        protocol: tcp

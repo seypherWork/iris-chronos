@@ -1,0 +1,71 @@
+# EXPERIMENTAL: source only; no paid or native cloud run verified yet.
+# Explicit opt-in; do not merge with compose.local-model.yaml.
+services:
+  cloud-guard:
+    profiles: [cloud-provider]
+    image: ${CHRONOS_IMAGE:?Use the authorized locally loaded AI Hub154 image}
+    pull_policy: never
+    network_mode: service:iris
+    depends_on:
+      iris:
+        condition: service_healthy
+    restart: "no"
+    cpus: 0.5
+    mem_limit: 256m
+    user: "51773:51773"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    read_only: true
+    stdin_open: true
+    tty: true
+    ulimits:
+      core: 0
+    healthcheck:
+      disable: true
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+    entrypoint: [/usr/bin/python3, -B, /opt/chronos/deployment/cloud_provider.py]
+    command:
+      - serve
+      - --deployment-id
+      - ${CHRONOS_DEPLOYMENT_ID:?Use the installed deployment ID}
+      - --authorize-plan-sha256
+      - ${CHRONOS_CLOUD_APPROVED_PLAN_SHA256:?Explicit owner approval of the reviewed plan is required}
+      - --bundle-sha256
+      - ${CHRONOS_APP_MANIFEST_SHA256:?Use the actual verified bundle manifest hash}
+    volumes:
+      - type: bind
+        source: ${CHRONOS_APP:?Set the verified source bundle}
+        target: /opt/chronos/bundle
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CHRONOS_APP:?Set the verified source bundle}/src
+        target: /opt/chronos/src
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CHRONOS_APP:?Set the verified source bundle}/deployment
+        target: /opt/chronos/deployment
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CHRONOS_APP:?Set the verified source bundle}/tools
+        target: /opt/chronos/tools
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CHRONOS_GUARD_STATE:?Use a dedicated private guard directory}
+        target: /opt/chronos/runtime
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CHRONOS_CLOUD_PLAN:?Use the reviewed non-secret plan file}
+        target: /opt/chronos/cloud-plan.json
+        read_only: true
+        bind:
+          create_host_path: false
