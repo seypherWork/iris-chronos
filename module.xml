@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25">
+  <Document name="iris-chronos.ZPM">
+    <Module>
+      <Name>iris-chronos</Name>
+      <Version>1.0.2</Version>
+      <Description>IRIS AI Hub shipment recovery production with human approval and receipt verification.</Description>
+      <SystemRequirements Version="&gt;=2026.3" Interoperability="enabled"/>
+      <SourcesRoot>src</SourcesRoot>
+      <Resource Name="Chronos.PKG"/>
+    </Module>
+  </Document>
+</Export>

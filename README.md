@@ -42,6 +42,28 @@ Keep the image outside the repository. The [contest clarification](https://commu
    [Run the cases](deployment/JURY-ROUTE.md#6-six-cases-one-at-a-time) and
    [close the deployment](deployment/JURY-ROUTE.md#7-close-access-and-stop-only-this-deployment).
 
+### Install the ObjectScript module with IPM
+
+Use a fresh Interoperability-enabled namespace on IRIS AI Hub build 154 with
+[IPM 0.10.10](https://github.com/intersystems/ipm/releases/tag/v0.10.10) available
+in that namespace. Load the repository folder containing `module.xml`, or load
+the package archive if you have it.
+
+```objectscript
+zpm "load /path/to/iris-chronos/ -nodev"
+```
+
+```objectscript
+zpm "load /path/to/iris-chronos-1.0.2.tgz -nodev"
+```
+
+Run `zpm "list"` and check for `iris-chronos 1.0.2`. Once this version is
+published in your configured IPM registry, use `zpm "install iris-chronos 1.0.2"`.
+The module installs the production definition and its ObjectScript classes.
+For a runnable deployment with the Python components, web assets, isolated
+storage, access controls and model, follow the
+[Docker Compose walkthrough](https://github.com/seypherWork/iris-chronos/blob/0636167fc0aca72ca12d78d16ac0fec764887ac2/deployment/JURY-ROUTE.md).
+
 ## Evidence and limits
 
 The [exact-package rehearsal](deployment/EVIDENCE.md#exact-package-rehearsal-on-467) ran
