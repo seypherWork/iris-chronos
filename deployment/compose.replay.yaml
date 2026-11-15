@@ -1,0 +1,94 @@
+# Closed recorded interpretations; native IRIS still validates current facts,
+# previews, approvals, dispatch fences and readback. No model process or GPU.
+services:
+  iris:
+    volumes:
+      - type: bind
+        source: ${CHRONOS_CONVERSATION_STATE:?Set a separate conversation state directory}
+        target: /opt/chronos/conversation-runtime
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CHRONOS_REPLAY_FIXTURES:?Set the verified fixture evidence directory}
+        target: /opt/chronos/fixtures
+        read_only: true
+        bind:
+          create_host_path: false
+  guard:
+    profiles: [recorded-fixture]
+    image: ${CHRONOS_IMAGE:?Set the locally loaded authorized AI Hub 154 image}
+    pull_policy: never
+    network_mode: service:iris
+    depends_on:
+      iris:
+        condition: service_healthy
+    restart: "no"
+    cpus: 0.5
+    mem_limit: 256m
+    user: "51773:51773"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    read_only: true
+    healthcheck:
+      disable: true
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+    entrypoint: [/usr/bin/python3, -B, /opt/chronos/deployment/replay_provider.py]
+    command: [serve, --deployment-id, "${CHRONOS_DEPLOYMENT_ID:?Set the bound deployment ID}", --contract, e1, --runtime, /opt/chronos/runtime]
+    volumes:
+      - type: bind
+        source: ${CHRONOS_APP:?Set the verified source bundle path}/src
+        target: /opt/chronos/src
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CHRONOS_APP:?Set the verified source bundle path}/deployment
+        target: /opt/chronos/deployment
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CHRONOS_GUARD_STATE:?Set the dedicated decision guard directory}
+        target: /opt/chronos/runtime
+        bind:
+          create_host_path: false
+  conversation-guard:
+    profiles: [recorded-fixture]
+    image: ${CHRONOS_IMAGE:?Set the locally loaded authorized AI Hub 154 image}
+    pull_policy: never
+    network_mode: service:iris
+    depends_on:
+      iris:
+        condition: service_healthy
+    restart: "no"
+    cpus: 0.5
+    mem_limit: 256m
+    user: "51773:51773"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    read_only: true
+    healthcheck:
+      disable: true
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+    entrypoint: [/usr/bin/python3, -B, /opt/chronos/deployment/replay_provider.py]
+    command: [serve, --deployment-id, "${CHRONOS_DEPLOYMENT_ID:?Set the bound deployment ID}", --contract, c2-v2, --runtime, /opt/chronos/runtime]
+    volumes:
+      - type: bind
+        source: ${CHRONOS_APP:?Set the verified source bundle path}/src
+        target: /opt/chronos/src
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CHRONOS_APP:?Set the verified source bundle path}/deployment
+        target: /opt/chronos/deployment
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CHRONOS_CONVERSATION_STATE:?Set the dedicated conversation guard directory}
+        target: /opt/chronos/runtime
+        bind:
+          create_host_path: false

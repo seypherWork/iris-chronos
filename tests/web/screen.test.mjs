@@ -206,9 +206,17 @@ test("boot rejects missing/unsafe routes and restores disconnected after page ca
         assert.equal(root.textContent, "");
         events.get("pageshow")({persisted: true});
         assert.match(root.textContent, /Disconnected/);
-        assert.equal(flatten(root).filter(e => e.tag === "form").length, 2);
+        const forms=flatten(root).filter(e => e.tag === "form");
+        assert.equal(forms.length, 3);
+        assert.deepEqual(forms.map(e=>e.attrs["aria-label"]).sort(),
+          ["Read a case","Ask about this case","Record customer clarification"].sort());
         assert.equal(flatten(root).filter(e => e.attrs["aria-label"] === "Read a case").length, 1);
         assert.equal(flatten(root).filter(e => e.attrs["aria-label"] === "Ask about this case").length, 1);
+        assert.equal(flatten(root).filter(e => e.attrs["aria-label"] === "Record customer clarification").length, 1);
+        const clarification=flatten(root).filter(e=>e.attrs["aria-label"]==="Native human clarification");
+        assert.equal(clarification.length,1);
+        assert.deepEqual(flatten(clarification[0]).filter(e=>e.tag==="form").map(e=>e.attrs["aria-label"]),
+          ["Record customer clarification"]);
         assert.equal(network, 0);
       } else {
         assert.equal(flatten(root).some(e => e.tag === "form"), false);

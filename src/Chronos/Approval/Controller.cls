@@ -5,6 +5,11 @@ Include %occStatus
 /// request size and strict JSON parsing. Fixed production class, never user-selected.
 Class Chronos.Approval.Controller Extends %RegisteredObject
 {
+/// Job-local one-use preparation capability. Never returned, stored or messaged.
+Property PreparationClaimJSON As %String(MAXLEN = 8192) [ Private ];
+Property PreparationClaimConsumed As %Boolean [ Private ];
+Property PreparationOwnerNonce As %String [ Private ];
+
 /// Native identity only. Override exists solely in opt-in isolated test classes.
 Method Principal(permission As %String, Output principal As %DynamicObject) As %Status
 {
@@ -47,6 +52,52 @@ Method Valid(command As %String, args As %DynamicObject) As %Boolean [ Private ]
     Return $Translate(value,"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.")=""
 }
 
+/// Resolve a pending clarified action BEFORE bootLock. Existing preparation
+/// receipts and confirmed operations retain their ordinary readback-only path.
+/// No Task or account probe runs for an ordinary unclarified decision.
+Method WorkflowDecision(command As %String, args As %DynamicObject, principal As %DynamicObject, Output identifier As %String) As %Status [ Private ]
+{
+    Set identifier="",candidate=""
+    If (command="PREVIEW")||(command="PREVIEW_REQUEST") {
+        If command="PREVIEW_REQUEST" {
+            Set sc=##class(Chronos.Authority.Store).Apply("READ_PREPARATION",{"actor":(principal.actor),"requestId":(args.requestId)},.receipt) If $$$ISERR(sc) Return sc
+            If receipt.%Get("state")'="NOT_FOUND" Return $$$OK
+        }
+        Set candidate=args.decisionId
+    } ElseIf command="CONFIRM" {
+        Set owner={"previewId":(args.previewId),"actor":(principal.actor),"sessionBinding":(principal.sessionBinding)}
+        Set sc=##class(Chronos.Authority.Store).Apply("READ_PREVIEW",owner,.preview) If $$$ISERR(sc) Return sc
+        If preview.%Get("state")'="PENDING" Return $$$OK
+        Set candidate=preview.%Get("decisionId")
+    }
+    If candidate="" Return $$$OK
+    Set sc=##class(Chronos.Agent.Ledger).Apply("INSPECT",{"requestId":(candidate)},.read) If $$$ISERR(sc) Return sc
+    If read.%GetTypeOf("private")'="object" Return $$$OK
+    Set d=read.private,hasReference=0
+    If (d.%GetTypeOf("prepared")="object"),(d.prepared.%GetTypeOf("record")="object") Set hasReference=d.prepared.record.%IsDefined("clarification_binding")
+    If hasReference||d.%IsDefined("clarificationAnchor") Set identifier=candidate
+    Return $$$OK
+}
+
+/// This is not an IPC call. The optional native object is scoped to this one
+/// authenticated job. Its account sample was read BEFORE Task/boot, with a
+/// maximum age of one second, not an instantaneous account-revocation promise.
+/// Reinspect here to prevent a newly added/partial source bypassing preflight.
+Method WorkflowCurrent(decisionId As %String) As %Status [ Private ]
+{
+    Set sc=##class(Chronos.Agent.Ledger).Apply("INSPECT",{"requestId":(decisionId)},.read) If $$$ISERR(sc) Return sc
+    If read.%GetTypeOf("private")'="object" Return $$$ERROR($$$GeneralError,"DECISION_NOT_AVAILABLE")
+    Set d=read.private,hasReference=0
+    If (d.%GetTypeOf("prepared")="object"),(d.prepared.%GetTypeOf("record")="object") Set hasReference=d.prepared.record.%IsDefined("clarification_binding")
+    If 'hasReference,'d.%IsDefined("clarificationAnchor") Return $$$OK
+    If '$Data(%ChronosWorkflowGate) Return $$$ERROR($$$GeneralError,"WORKFLOW_GATE_REQUIRED")
+    If '$IsObject(%ChronosWorkflowGate) Return $$$ERROR($$$GeneralError,"WORKFLOW_GATE_REQUIRED")
+    If %ChronosWorkflowGate.%ClassName(1)'="Chronos.Workflow.ContextGate" Return $$$ERROR($$$GeneralError,"WORKFLOW_GATE_REQUIRED")
+    Set sc=%ChronosWorkflowGate.AccountCheckRequestId(decisionId,.current) If $$$ISERR(sc) Return sc
+    If (current.%Size()'=2)||(current.%GetTypeOf("allowed")'="boolean")||'current.allowed||(current.%Get("code")'="WORKFLOW_ACCOUNT_CURRENTLY_ALLOWED") Return $$$ERROR($$$GeneralError,"WORKFLOW_CONTEXT_CHANGED")
+    Return $$$OK
+}
+
 /// Only decision/preview IDs enter. All grants remain local variables, never
 /// Ens messages, response JSON or log material. Double clicks are readback only.
 Method Handle(command As %String, args As %DynamicObject, Output result As %DynamicObject) As %Status
@@ -60,8 +111,26 @@ Method Handle(command As %String, args As %DynamicObject, Output result As %Dyna
     If $$$ISERR(sc) Set result=..Denied("IDENTITY_UNAVAILABLE") Return $$$OK
     If 'principal.%Get("authenticated") Set result=..Denied("PERMISSION_DENIED") Return $$$OK
     Set principal={"actor":(principal.actor),"sessionBinding":(principal.sessionBinding)}
+    New %ChronosWorkflowGate
+    Set %ChronosWorkflowGate="",workflowGate=""
+    Set sc=..WorkflowDecision(command,args,principal,.workflowDecision)
+    If $$$ISERR(sc) Set result=..Denied("RECHECK_REQUIRED") Return $$$OK
+    If workflowDecision'="" {
+        Set workflowGate=##class(Chronos.Workflow.ContextGate).%New()
+        Set sc=workflowGate.Init(workflowDecision,.workflowReady)
+        If $$$ISERR(sc)||'workflowReady.%Get("ready") {
+            Set ignored=workflowGate.Release(),result=..Denied("WORKFLOW_CONTEXT_UNAVAILABLE")
+            Return $$$OK
+        }
+        Set %ChronosWorkflowGate=workflowGate
+        If command="PREVIEW_REQUEST" Return ..PreparationTwoPhase(args,principal,workflowGate,.result)
+    }
     Lock +^ChronosRuntime("bootLock"):0
-    If '$Test Set result=..Denied("RUNTIME_BUSY") Return $$$OK
+    If '$Test {
+        If $IsObject(workflowGate) Set ignored=workflowGate.Release()
+        Set result=..Denied("RUNTIME_BUSY")
+        Return $$$OK
+    }
     Set reservedId="",admitted="",coordinator="",queryId=""
     Try {
         Set sc=..RunLocked(command,args,principal,permission,.result,.reservedId,.admitted,.coordinator,.queryId)
@@ -80,6 +149,14 @@ Method Handle(command As %String, args As %DynamicObject, Output result As %Dyna
         }
     }
     Lock -^ChronosRuntime("bootLock")
+    If $IsObject(workflowGate) {
+        // Unlock Task and destroy no service while bootLock is held.
+        Set released=workflowGate.Release(),%ChronosWorkflowGate=""
+        // A committed admission is never undone or silently retried because
+        // later lock cleanup failed. The same one-use continuation below owns
+        // its outcome; the object's close performs a second unlock attempt.
+        Set workflowGate=""
+    }
     If queryId'="" {
         // Fresh READ before query and before projection; no dispatch authority.
         Set sc=..SamePrincipal(principal,"READ")
@@ -157,6 +234,7 @@ Method RunLocked(command As %String, args As %DynamicObject, principal As %Dynam
     If p.state'="PENDING" Set result=..Denied("PREVIEW_NOT_PENDING") Return $$$OK
     // Never REFRESH a preview at confirmation. Check its original exact binding
     // against a fresh semantic observation; changed consent needs a new preview.
+    Set sc=..WorkflowCurrent(p.decisionId) If $$$ISERR(sc) Return sc
     Set sc=##class(Chronos.Agent.Context).Review(p.decisionId,.review) If $$$ISERR(sc) Return sc
     If review.%Get("status")'="REVIEWABLE" Set result=..Denied(review.%Get("code","RECHECK_REQUIRED")) Return $$$OK
     Set b=review.binding
@@ -166,12 +244,14 @@ Method RunLocked(command As %String, args As %DynamicObject, principal As %Dynam
     If b.expectedSnapshotId'=p.snapshotId Return $$$ERROR($$$GeneralError,"PREVIEW_SNAPSHOT_CHANGED")
     Set sc=..SamePrincipal(principal,"APPROVE") If $$$ISERR(sc) Return sc
     Set owner.generation=p.generation
+    Set sc=..WorkflowCurrent(p.decisionId) If $$$ISERR(sc) Return sc
     Set sc=##class(Chronos.Authority.Store).Apply("CONFIRM_RESERVE",owner,.reservation) If $$$ISERR(sc) Return sc
     If 'reservation.%Get("reservationGranted") Return coordinator.Observe(p.operationId,.result)
     Set reservedId=reservation.operationId
     Set sc=..SamePrincipal(principal,"APPROVE") If $$$ISERR(sc) Return sc
     Set sc=##class(Chronos.Runtime.Bootstrap).Ready(.ready,p.generation) If $$$ISERR(sc) Return sc
     If 'ready.ready Return $$$ERROR($$$GeneralError,"RUNTIME_CHANGED")
+    Set sc=..WorkflowCurrent(p.decisionId) If $$$ISERR(sc) Return sc
     Set sc=##class(Chronos.Authority.Store).Apply("ADMIT",{"operationId":(reservedId),"attemptId":(reservation.attemptId),"actor":(principal.actor),"claimId":(reservation.claimId)},.grant)
     If $$$ISERR(sc) Return sc
     If 'grant.%Get("dispatchGranted") Return $$$ERROR($$$GeneralError,"NO_ADMISSION")
@@ -193,7 +273,7 @@ Method PublicPreparation(receipt As %DynamicObject) As %DynamicObject [ Private 
 
 /// Called under bootLock in the authenticated job. Duplicate creation requests
 /// are reads only, before any Snapshot, REFRESH or semantic Review can run.
-Method Preparation(command As %String, args As %DynamicObject, principal As %DynamicObject, Output result As %DynamicObject) As %Status [ Private ]
+Method Preparation(command As %String, args As %DynamicObject, principal As %DynamicObject, Output result As %DynamicObject, deferPreview As %Boolean = 0) As %Status [ Private ]
 {
     Set permission=$Select(command="READ_PREPARATION":"READ",1:"APPROVE")
     Set sc=..SamePrincipal(principal,permission) If $$$ISERR(sc) Return sc
@@ -228,7 +308,11 @@ Method Preparation(command As %String, args As %DynamicObject, principal As %Dyn
         // Do not retry creation or close automatically. Explicit READ/CLOSE
         // can inspect/fence the original request even after runtime renewal.
         Try {
-            Set creationStatus=..CreatePreview(args.decisionId,principal,.ignored,receipt.previewId)
+            If deferPreview {
+                Set creationStatus=..PreparePreviewClaim(args,principal,.ignored)
+            } Else {
+                Set creationStatus=..CreatePreview(args.decisionId,principal,.ignored,receipt.previewId)
+            }
         } Catch ex {
             Set creationStatus=$$$ERROR($$$GeneralError,"PREPARATION_INTERRUPTED")
         }
@@ -238,6 +322,159 @@ Method Preparation(command As %String, args As %DynamicObject, principal As %Dyn
     Set sc=..SamePrincipal(principal,"APPROVE") If $$$ISERR(sc) Return sc
     Set result=..PublicPreparation(receipt)
     Return $$$OK
+}
+
+/// Two unique account samples. No service IPC while either Task or boot is held.
+/// Phase A's durable STARTED receipt never grants a retry after uncertainty.
+Method PreparationTwoPhase(args As %DynamicObject, principal As %DynamicObject, gateA As Chronos.Workflow.ContextGate, Output result As %DynamicObject) As %Status [ Private ]
+{
+    Set result=..Denied("PREPARATION_OUTCOME_UNKNOWN"),gateB="",held=0,releasedA=0,cleanupOK=1
+    If $TLevel||(..PreparationClaimJSON'="")||..PreparationClaimConsumed {
+        Set ignored=gateA.Release()
+        Return $$$OK
+    }
+    New %ChronosWorkflowGate
+    Set %ChronosWorkflowGate=gateA
+    Try {
+        Lock +^ChronosRuntime("bootLock"):0 If '$Test Throw ##class(%Exception.General).%New("RUNTIME_BUSY")
+        Set held=1
+        Set sc=..Preparation("PREVIEW_REQUEST",args,principal,.result,1) $$$ThrowOnError(sc)
+        // Both journal barriers and the provider snapshot precede sample B.
+        Lock -^ChronosRuntime("bootLock") Set held=0
+        Set sc=gateA.Release() $$$ThrowOnError(sc)
+        Set releasedA=1,%ChronosWorkflowGate=""
+        If ..PreparationClaimJSON'="" {
+            // Never reuse/renew A and never probe with A's Task lock retained.
+            If $TLevel Throw ##class(%Exception.General).%New("NO_TRANSACTION_DURING_PROBE")
+            Set gateB=##class(Chronos.Workflow.ContextGate).%New()
+            Set sc=gateB.Init(args.decisionId,.freshGate) $$$ThrowOnError(sc)
+            If 'freshGate.%Get("ready") Throw ##class(%Exception.General).%New("WORKFLOW_CONTEXT_UNAVAILABLE")
+            Set %ChronosWorkflowGate=gateB
+            Lock +^ChronosRuntime("bootLock"):0 If '$Test Throw ##class(%Exception.General).%New("RUNTIME_BUSY")
+            Set held=1
+            Set sc=..ConsumePreviewClaim(args,principal,.ignored) $$$ThrowOnError(sc)
+            Set sc=..SamePrincipal(principal,"APPROVE") $$$ThrowOnError(sc)
+            Set sc=##class(Chronos.Authority.Store).Apply("READ_PREPARATION",{"actor":(principal.actor),"requestId":(args.requestId)},.receipt) $$$ThrowOnError(sc)
+            Set sc=..SamePrincipal(principal,"APPROVE") $$$ThrowOnError(sc)
+            Set result=..PublicPreparation(receipt)
+        }
+    } Catch phaseError {
+        // Do not close/recreate STARTED or issue another probe/preview attempt.
+        Set result=..Denied("PREPARATION_OUTCOME_UNKNOWN")
+    }
+    // Cleanup always runs, and Task unlocks follow the boot unlock.
+    If held { Try { Lock -^ChronosRuntime("bootLock") Set held=0 } Catch cleanupError { Set cleanupOK=0 } }
+    Set %ChronosWorkflowGate=""
+    If $IsObject(gateB) { Try { Set sc=gateB.Release() If $$$ISERR(sc) Set cleanupOK=0 } Catch cleanupError { Set cleanupOK=0 } }
+    If 'releasedA { Try { Set sc=gateA.Release() If $$$ISERR(sc) Set cleanupOK=0 } Catch cleanupError { Set cleanupOK=0 } }
+    Set ..PreparationClaimJSON=""
+    If 'cleanupOK {
+        Set result=..Denied("PREPARATION_OUTCOME_UNKNOWN")
+    } ElseIf result.%Get("code")="PREPARATION_OUTCOME_UNKNOWN" {
+        // A fresh read can observe a committed receipt after a lost reply.
+        // Never return A's cached receipt or repeat creation after uncertainty.
+        // Both Task/boot locks and both sample objects have been released.
+        Try {
+            Set sc=..SamePrincipal(principal,"APPROVE") $$$ThrowOnError(sc)
+            Set sc=##class(Chronos.Authority.Store).Apply("READ_PREPARATION",{"actor":(principal.actor),"requestId":(args.requestId)},.currentReceipt) $$$ThrowOnError(sc)
+            If currentReceipt.%Get("decisionId")'=args.decisionId Throw ##class(%Exception.General).%New("PREPARATION_BINDING_CHANGED")
+            Set sc=..SamePrincipal(principal,"APPROVE") $$$ThrowOnError(sc)
+            Set result=..PublicPreparation(currentReceipt)
+        } Catch readError {
+            Set result=..Denied("PREPARATION_OUTCOME_UNKNOWN")
+        }
+    }
+    Return $$$OK
+}
+
+ClassMethod PreparationDigest(value As %String) As %String [ Private ]
+{
+    Return $ZConvert(##class(%xsd.hexBinary).LogicalToXSD($System.Encryption.SHAHash(256,value)),"L")
+}
+
+/// Rebuild every binding from native state; nothing here is an HTTP grant.
+Method PreparationBindings(args As %DynamicObject, principal As %DynamicObject, Output bindings As %DynamicObject) As %Status [ Private ]
+{
+    Set bindings={}
+    Set sc=..SamePrincipal(principal,"APPROVE") If $$$ISERR(sc) Return sc
+    Set sc=##class(Chronos.Runtime.Bootstrap).Ready(.ready) If $$$ISERR(sc) Return sc
+    If 'ready.ready Return $$$ERROR($$$GeneralError,"RUNTIME_NOT_READY")
+    Set sc=##class(Chronos.Agent.Ledger).Apply("INSPECT",{"requestId":(args.decisionId)},.read) If $$$ISERR(sc) Return sc
+    If read.%GetTypeOf("private")'="object" Return $$$ERROR($$$GeneralError,"DECISION_NOT_AVAILABLE")
+    Set d=read.private
+    If (d.%Get("state")'="COMPLETED")||(d.%Get("requestId")'=args.decisionId)||(d.%Get("generation")'=ready.generation) Return $$$ERROR($$$GeneralError,"PREPARATION_BINDING_CHANGED")
+    If '##class(Chronos.Workflow.AccountState).ReadAnchor(args.decisionId,.anchor) Return $$$ERROR($$$GeneralError,"CLARIFICATION_ANCHOR_REQUIRED")
+    If anchor.generation'=ready.generation Return $$$ERROR($$$GeneralError,"PREPARATION_BINDING_CHANGED")
+    Set sc=##class(Chronos.Authority.Store).Apply("READ",{"orderId":(d.orderId),"shipmentVersion":(d.shipmentVersion)},.authority) If $$$ISERR(sc) Return sc
+    Set sc=##class(Chronos.Authority.Store).Apply("READ_PREPARATION",{"actor":(principal.actor),"requestId":(args.requestId)},.receipt) If $$$ISERR(sc) Return sc
+    If (receipt.state'="STARTED")||(receipt.decisionId'=args.decisionId) Return $$$ERROR($$$GeneralError,"PREPARATION_BINDING_CHANGED")
+    Set sc=..SamePrincipal(principal,"APPROVE") If $$$ISERR(sc) Return sc
+    Set bindings={"ownerJob":(+$Job),"namespace":($Namespace),"ownerNonce":(..PreparationOwnerNonce),"actor":(principal.actor),"sessionBinding":(principal.sessionBinding),"decisionId":(args.decisionId),"decisionDigest":(..PreparationDigest(d.%ToJSON())),"anchorDigest":(..PreparationDigest(anchor.%ToJSON())),"generation":(ready.generation),"snapshotId":(authority.effect.snapshotId),"authorityDigest":(..PreparationDigest(authority.effect.%ToJSON())),"previewId":(receipt.previewId),"requestId":(args.requestId)}
+    Return $$$OK
+}
+
+Method PreparePreviewClaim(args As %DynamicObject, principal As %DynamicObject, Output result As %DynamicObject) As %Status [ Private ]
+{
+    Set result=..Denied("PREPARATION_OUTCOME_UNKNOWN")
+    If (..PreparationClaimJSON'="")||..PreparationClaimConsumed Return $$$ERROR($$$GeneralError,"PREPARATION_CLAIM_ALREADY_USED")
+    Set sc=..PreviewSnapshot(args.decisionId,principal,.ready,.decision,.fresh,.result) If $$$ISERR(sc) Return sc
+    If fresh.%GetTypeOf("snapshotId")'="number" Return $$$ERROR($$$GeneralError,"PREPARATION_SOURCE_UNAVAILABLE")
+    If ..PreparationOwnerNonce="" Set ..PreparationOwnerNonce=$System.Util.CreateGUID()
+    Set sc=..PreparationBindings(args,principal,.bindings) If $$$ISERR(sc) Return sc
+    If (bindings.generation'=ready.generation)||(bindings.snapshotId'=fresh.snapshotId) Return $$$ERROR($$$GeneralError,"PREPARATION_BINDING_CHANGED")
+    // Warm/validate this pure private checker before sampling the new account.
+    If '..PreparationClaimMatches(bindings.%ToJSON(),bindings.%ToJSON()) Return $$$ERROR($$$GeneralError,"INVALID_PREPARATION_CLAIM")
+    Set ..PreparationClaimJSON=bindings.%ToJSON()
+    Return $$$OK
+}
+
+Method ConsumePreviewClaim(args As %DynamicObject, principal As %DynamicObject, Output result As %DynamicObject) As %Status [ Private ]
+{
+    Set result=..Denied("PREPARATION_OUTCOME_UNKNOWN")
+    If (..PreparationClaimJSON="")||..PreparationClaimConsumed Return $$$ERROR($$$GeneralError,"PREPARATION_CLAIM_ALREADY_USED")
+    // One attempted consumption, including validation failures; never auto-retry.
+    Set ..PreparationClaimConsumed=1
+    Set sc=..PreparationBindings(args,principal,.current) If $$$ISERR(sc) Return sc
+    If '..PreparationClaimMatches(..PreparationClaimJSON,current.%ToJSON()) Return $$$ERROR($$$GeneralError,"PREPARATION_BINDING_CHANGED")
+    Set ready={"generation":(current.generation)},fresh={"snapshotId":(current.snapshotId)}
+    Return ..FinishPreparedPreview(args.decisionId,principal,ready,fresh,.result,current.previewId)
+}
+
+/// Pure consistency, never authentication. Only this Controller retains the JSON.
+ClassMethod PreparationClaimMatches(claimJSON As %String, currentJSON As %String) As %Boolean [ Language = python, Private ]
+{
+    import json,re
+    try:
+        def pairs(rows):
+            value={}
+            for key,item in rows:
+                if key in value:raise ValueError('DUPLICATE_FIELD')
+                value[key]=item
+            return value
+        def constant(value):raise ValueError('NONFINITE_JSON')
+        def parse(raw):
+            if type(raw) is not str or not 0<len(raw.encode('utf-8'))<=8192:raise ValueError('INVALID_SIZE')
+            return json.loads(raw,object_pairs_hook=pairs,parse_constant=constant)
+        claim=parse(claimJSON);current=parse(currentJSON)
+        keys=set('ownerJob namespace ownerNonce actor sessionBinding decisionId decisionDigest anchorDigest generation snapshotId authorityDigest previewId requestId'.split())
+        def match(value,pattern):return type(value) is str and re.fullmatch(pattern,value) is not None
+        def valid(value):
+            if type(value) is not dict or set(value)!=keys:return False
+            if type(value['ownerJob']) is not int or not 1<=value['ownerJob']<2**63:return False
+            if type(value['snapshotId']) is not int or not 1<=value['snapshotId']<2**63:return False
+            if not match(value['namespace'],r'[A-Za-z0-9_%.-]{1,128}'):return False
+            if not match(value['ownerNonce'],r'[A-Fa-f0-9]{8}-(?:[A-Fa-f0-9]{4}-){3}[A-Fa-f0-9]{12}'):return False
+            if not match(value['actor'],r'principal-[a-f0-9]{64}'):return False
+            if not match(value['sessionBinding'],r'session-[a-f0-9]{64}'):return False
+            for key in ('decisionId','generation','previewId','requestId'):
+                if not match(value[key],r'[A-Za-z0-9_.-]{1,128}'):return False
+            if not value['previewId'].startswith('prep-'):return False
+            for key in ('decisionDigest','anchorDigest','authorityDigest'):
+                if not match(value[key],r'[a-f0-9]{64}'):return False
+            return True
+        return valid(claim) and valid(current) and claim==current
+    except (ValueError,TypeError,KeyError,UnicodeError,OverflowError,RecursionError):
+        return False
 }
 
 /// Historical detail only. Called under bootLock in the original authenticated
@@ -339,8 +576,9 @@ Method Decision(command As %String, id As %String, principal As %DynamicObject, 
     Return $$$OK
 }
 
-Method CreatePreview(decisionId As %String, principal As %DynamicObject, Output result As %DynamicObject, previewId As %String = "") As %Status [ Private ]
+Method PreviewSnapshot(decisionId As %String, principal As %DynamicObject, Output ready As %DynamicObject, Output decision As %DynamicObject, Output fresh As %DynamicObject, Output result As %DynamicObject) As %Status [ Private ]
 {
+    Set fresh={}
     Set result=..Denied("DECISION_NOT_ACTIONABLE")
     Set sc=##class(Chronos.Runtime.Bootstrap).Ready(.ready) If $$$ISERR(sc) Return sc
     If 'ready.ready Set result=..Denied("RUNTIME_NOT_READY") Return $$$OK
@@ -354,7 +592,14 @@ Method CreatePreview(decisionId As %String, principal As %DynamicObject, Output 
     Set sc=##class(Chronos.Authority.Store).Apply("READ",{"orderId":(decision.orderId),"shipmentVersion":(decision.shipmentVersion)},.prior) If $$$ISERR(sc) Return sc
     Set sc=provider.Snapshot(decision.orderId,.snapshot) If $$$ISERR(sc) Return sc
     Set sc=##class(Chronos.Authority.Store).Apply("REFRESH",{"snapshot":(snapshot),"expectedSnapshotId":(prior.effect.snapshotId)},.fresh) If $$$ISERR(sc) Return sc
+    Return $$$OK
+}
+
+Method FinishPreparedPreview(decisionId As %String, principal As %DynamicObject, ready As %DynamicObject, fresh As %DynamicObject, Output result As %DynamicObject, previewId As %String = "") As %Status [ Private ]
+{
+    Set result=..Denied("RECHECK_REQUIRED")
     // Review after REFRESH, never reuse a validation of different observations.
+    Set sc=..WorkflowCurrent(decisionId) If $$$ISERR(sc) Return sc
     Set sc=##class(Chronos.Agent.Context).Review(decisionId,.review) If $$$ISERR(sc) Return sc
     If review.%Get("status")'="REVIEWABLE" Set result=..Denied(review.%Get("code","RECHECK_REQUIRED")) Return $$$OK
     If (review.binding.generation'=ready.generation)||(review.binding.expectedSnapshotId'=fresh.snapshotId) Return $$$ERROR($$$GeneralError,"REVIEW_CHANGED")
@@ -362,6 +607,14 @@ Method CreatePreview(decisionId As %String, principal As %DynamicObject, Output 
     Set request=##class(%DynamicObject).%FromJSON(review.binding.%ToJSON())
     If previewId="" Set previewId=$System.Util.CreateGUID()
     Set request.previewId=previewId,request.actor=principal.actor,request.sessionBinding=principal.sessionBinding
+    Set sc=..WorkflowCurrent(decisionId) If $$$ISERR(sc) Return sc
     Return ##class(Chronos.Authority.Store).Apply("PREVIEW",request,.result)
+}
+
+Method CreatePreview(decisionId As %String, principal As %DynamicObject, Output result As %DynamicObject, previewId As %String = "") As %Status [ Private ]
+{
+    Set sc=..PreviewSnapshot(decisionId,principal,.ready,.decision,.fresh,.result) If $$$ISERR(sc) Return sc
+    If fresh.%GetTypeOf("snapshotId")'="number" Return $$$OK
+    Return ..FinishPreparedPreview(decisionId,principal,ready,fresh,.result,previewId)
 }
 }

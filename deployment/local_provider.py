@@ -143,7 +143,7 @@ def main(argv=None):
         command.add_argument("--deployment-id", required=True)
         command.add_argument("--model", required=True)
         command.add_argument("--request-limit", required=True, type=int)
-        command.add_argument("--reasoning-effort", choices=("none", "low", "medium"), default="none")
+        command.add_argument("--reasoning-effort", choices=("none", "low", "medium", "on"), default="none")
     args = parser.parse_args(argv)
     try:
         if args.action == "status":

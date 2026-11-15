@@ -111,9 +111,22 @@ def make_plan(config, manifest, manifest_sha256, profile, schema, *, cloud_plan_
     # Re-parse programmatically supplied profiles too.
     profile=Profile.parse(canonical(profile.public()))
     cloud = None
+    recorded = profile.provider == "recorded-fixture"
     if profile.provider == "ollama":
         require(cloud_plan_raw is None, "LOCAL_PROVIDER_CANNOT_HAVE_CLOUD_PLAN")
         validate_profile_schema(schema,profile)
+    elif recorded:
+        require(cloud_plan_raw is None, "RECORDED_PROVIDER_CANNOT_HAVE_CLOUD_PLAN")
+        validate_profile_schema(schema,profile)
+        require(profile.model == "chronos-recorded-fixture-v1" and profile.local_port is None
+                and profile.reasoning_effort == "none", "RECORDED_PROFILE_REQUIRED")
+        before = list(sys.path)
+        try:
+            sys.path.insert(0,str(ROOT/"src"))
+            from chronos_transport.fixture_replay import fixture_bank_digest
+            require(profile.replay_fixture_sha256 == fixture_bank_digest(), "RECORDED_FIXTURE_BANK_CHANGED")
+        finally:
+            sys.path[:] = before
     else:
         require(cloud_plan_raw is not None, "EXPLICIT_CLOUD_PLAN_REQUIRED")
         cloud = parse_cloud_plan(cloud_plan_raw)
@@ -131,8 +144,10 @@ def make_plan(config, manifest, manifest_sha256, profile, schema, *, cloud_plan_
     web_port=origin(config["web_origin"])
     require(config["native_guard_base_url"]=="http://127.0.0.1:11512/v1/", "SHARED_LOOPBACK_GUARD_REQUIRED")
     guard_port=11512
-    require(web_port != guard_port and (cloud is not None or len({web_port,guard_port,profile.local_port})==3), "LOCAL_LISTENER_PORT_CONFLICT")
-    require(cloud is not None or profile.provider=="ollama" and profile.local_port==11434, "LOCAL_COMPOSE_PROVIDER_REQUIRED")
+    require(web_port != guard_port and (cloud is not None or recorded or len({web_port,guard_port,profile.local_port})==3), "LOCAL_LISTENER_PORT_CONFLICT")
+    require(cloud is not None or recorded or profile.provider=="ollama" and profile.local_port==11434, "LOCAL_COMPOSE_PROVIDER_REQUIRED")
+    if recorded:
+        require(web_port != 11514, "RECORDED_LISTENER_PORT_CONFLICT")
     api=manifest["api_base"]
     require(type(api) is str and re.fullmatch(r"/csp/chronos(?:-[a-z0-9-]+)?/",api) is not None, "BUNDLE_API_BASE_NOT_INSTALLABLE")
     ident=config["deployment_id"]
@@ -148,7 +163,7 @@ def make_plan(config, manifest, manifest_sha256, profile, schema, *, cloud_plan_
            prefix+"_Python":["%Service_EmbeddedPython:U"]}
     users={prefix+"_Reader":[prefix+"_Base",prefix+"_Read"],
            prefix+"_Operator":[prefix+"_Base",prefix+"_Read",prefix+"_Approve"]}
-    state=host_guard/("cloud-provider" if cloud is not None else "local-provider")
+    state=host_guard/("cloud-provider" if cloud is not None else "fixture-provider" if recorded else "local-provider")
     root="/durable/chronos/"+ident
     secondary_resource="%DB_"+namespace+"SECONDARY"
     # These are explicit planned mutations, NOT executable shell commands.
@@ -193,6 +208,13 @@ def make_plan(config, manifest, manifest_sha256, profile, schema, *, cloud_plan_
         planned["guard"].update(provider="openai-chat-json", cloud_plan_sha256=digest(cloud),
                                 budget_policy=cloud["policy"], key_input="PRIVATE_INTERACTIVE_CONSOLE_ONLY",
                                 initialize_authorization="EXACT_CLOUD_PLAN_DIGEST", budget_initialized=False)
+    if recorded:
+        planned["model"].update(execution_mode="RECORDED_FIXTURE", fresh_inference=False,
+                                replay_corpus_sha256=profile.replay_corpus_sha256,
+                                replay_fixture_sha256=profile.replay_fixture_sha256)
+        planned["guard"].update(provider="recorded-fixture", execution_mode="RECORDED_FIXTURE",
+                                fresh_inference=False, replay_corpus_sha256=profile.replay_corpus_sha256,
+                                replay_fixture_sha256=profile.replay_fixture_sha256)
     return {"schema_version":"chronos.install-plan.v3","status":"PLAN_ONLY_NOT_APPLIED",
             "bundle_manifest_sha256":manifest_sha256,"configuration_sha256":digest(config),
             "profile_sha256":profile.digest,"required_iris_build":manifest["required_iris_build"],
@@ -205,6 +227,7 @@ def make_plan(config, manifest, manifest_sha256, profile, schema, *, cloud_plan_
                         "LIVE_IMAGE_VERSION_NAMESPACE_DATABASE_AND_ACCOUNT_PREFLIGHT",
                         "FIXED_ORIGIN_AND_OWNED_GUARD_NETWORK_PATH_NOT_VERIFIED",
                         ("CLOUD_PAID_AUTHORIZATION_PRIVATE_KEY_TLS_AND_PROVIDER_NOT_VERIFIED" if cloud is not None
+                         else "RECORDED_CORPUS_AND_NATIVE_ROUTE_NOT_VERIFIED" if recorded
                          else "LOCAL_MODEL_COMPATIBILITY_AND_RESOURCE_HEADROOM_NOT_VERIFIED"),
                         "NATIVE_INSTALLATION_NOT_EXECUTED_OR_VERIFIED"],
             "account_changes":0,"native_calls":0,"model_calls":0,"applied":False,"ready_for_apply":False}
@@ -223,6 +246,12 @@ def checked_bundle(bundle_path, expected_sha):
                 "src/chronos_transport/cloud_budget.py","deployment/cloud_provider.py",
                 "deployment/provider_state.py","deployment/compose.cloud.yaml") :
         require(sha256(bundle.web._read(ROOT/rel)).hexdigest()==manifest["source_sha256"][rel], "PLANNER_DEPENDENCY_DRIFT")
+    if "deployment/replay_provider.py" in manifest["source_sha256"]:
+        for rel in ("deployment/replay_provider.py", "deployment/compose.replay.yaml", "deployment/first_case.py",
+                    "src/chronos_transport/replay.py", "src/chronos_transport/fixture_replay.py"):
+            require(rel in manifest["source_sha256"] and
+                    sha256(bundle.web._read(ROOT/rel)).hexdigest() == manifest["source_sha256"][rel],
+                    "PLANNER_RECORDED_DEPENDENCY_DRIFT")
     return actual,checked,manifest
 
 

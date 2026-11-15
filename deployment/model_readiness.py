@@ -1,7 +1,7 @@
 """Explicit local neutral inference check; never a business request or readiness lease.
 
 Run inside the installed IRIS container. No service start, downloads, credentials,
-quota changes, retries or remote destinations. Results are historical evidence.
+quota changes, inference retries or remote destinations. Results are historical evidence.
 """
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -84,6 +84,21 @@ def exchange(path, body, deadline):
         raise ReadinessError('DEADLINE_EXCEEDED' if expired.is_set() or time.monotonic()>=deadline else 'TRANSPORT_UNCERTAIN') from None
     finally:timer.cancel();conn.close()
 
+def wait_model_tags(deadline, max_startup=30):
+    """Retry startup transport failures using GET only, within the original deadline."""
+    require(type(max_startup) in (int,float) and 0<max_startup<=30,'INVALID_BINDING')
+    startup_deadline=min(deadline,time.monotonic()+max_startup)
+    while True:
+        require(time.monotonic()<startup_deadline,'DEADLINE_EXCEEDED')
+        try:
+            return exchange('/api/tags',None,startup_deadline)
+        except ReadinessError as error:
+            if str(error)!='TRANSPORT_UNCERTAIN':
+                raise
+            remaining=startup_deadline-time.monotonic()
+            require(remaining>0,'DEADLINE_EXCEEDED')
+            time.sleep(min(.5,remaining))
+
 def neutral_request(profile):
     return {'model':profile.model,'messages':[{'role':'user','content':
         'This is a neutral readiness check. Ignore the numeric padding below. '
@@ -91,7 +106,9 @@ def neutral_request(profile):
         '0 1 2 3 4 5 6 7 8 9 '*80+'\n</neutral-padding>'}],
         'format':{'type':'object','properties':{'ready':{'type':'boolean','const':True}},
                   'required':['ready'],'additionalProperties':False},
-        'think':False if profile.reasoning_effort=='none' else profile.reasoning_effort,
+        # The E1 boolean-thinking pilot is intentionally warmed without thinking:
+        # this 128-token neutral check does not validate reasoning performance.
+        'think':False if profile.reasoning_effort in ('none','on') else profile.reasoning_effort,
         'options':{'num_predict':128,'temperature':0},'stream':False,'keep_alive':'10m',
         'truncate':False,'shift':False}
 
@@ -220,9 +237,20 @@ def historical(area, identity):
         return dict(identity,status='EXISTING_ATTEMPT_UNVERIFIED',performed_request=False)
 
 def inspect(ident, profile_sha, attempt, model_digest, context_length, *, runtime=provider.RUNTIME,data_root=DATA_ROOT):
-    _,area,identity=binding(ident,profile_sha,attempt,model_digest,context_length,runtime,data_root)
-    if not os.path.lexists(area):return dict(identity,status='NOT_FOUND',performed_request=False)
-    checked_parent(area);return historical(area,identity)
+    profile,area,identity=binding(ident,profile_sha,attempt,model_digest,context_length,runtime,data_root)
+    if not os.path.lexists(area):result=dict(identity,status='NOT_FOUND',performed_request=False)
+    else:
+        checked_parent(area);result=historical(area,identity)
+    return reasoning_scope(result,profile)
+
+
+def reasoning_scope(result,profile):
+    # Add pilot-only reporting fields; legacy reports and stored records retain
+    # their existing shape and the immutable profile digest binds this choice.
+    if profile.reasoning_effort=='on':
+        return result|{'warmup_thinking':False,'reasoning_enabled_verified':False,
+            'reasoning_validation':'NOT_TESTED_BY_NEUTRAL_WARMUP'}
+    return result
 
 def run(ident, profile_sha, attempt, model_digest, context_length, *, authorize_id,
         runtime=provider.RUNTIME,data_root=DATA_ROOT):
@@ -234,14 +262,14 @@ def run(ident, profile_sha, attempt, model_digest, context_length, *, authorize_
     checked_parent(area)
     with exclusive(area):
         existing=historical(area,identity)
-        if existing['status']!='NOT_FOUND':return existing
+        if existing['status']!='NOT_FOUND':return reasoning_scope(existing,profile)
         target=area/attempt
         target.mkdir(mode=0o700);sync_dir(area)
         write_new(target/'intent.json',identity)  # Persist before any HTTP request.
         begun=time.monotonic();deadline=begun+DEADLINE_SECONDS;sent=False;metrics={}
         status='READINESS_UNVERIFIED';code='TRANSPORT_UNCERTAIN'
         try:
-            model_record(exchange('/api/tags',None,deadline),profile.model,model_digest)
+            model_record(wait_model_tags(deadline),profile.model,model_digest)
             sent=True
             value=exchange('/api/chat',neutral_request(profile),deadline)
             metrics=validate_neutral(value,profile.model);value=None
@@ -255,8 +283,8 @@ def run(ident, profile_sha, attempt, model_digest, context_length, *, authorize_
             metrics={}
         result={'binding':identity,'status':status,'code':code,'observed_at':datetime.now(timezone.utc).isoformat(),'metrics':metrics}
         write_new(target/'result.json',result)
-        return dict(identity,status=status,code=code,observed_at=result['observed_at'],metrics=metrics,
-                    performed_request=sent,historical=False,business_requests=0,availability_guaranteed=False)
+        return reasoning_scope(dict(identity,status=status,code=code,observed_at=result['observed_at'],metrics=metrics,
+                    performed_request=sent,historical=False,business_requests=0,availability_guaranteed=False),profile)
 
 def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='command',required=True)

@@ -77,7 +77,7 @@ ClassMethod Load(root As %String, namespace As %String, simulation As %String) A
     simroot=simulation.rsplit('.',1)[0];simmodule=sys.modules.get(simroot)
     identity=getattr(simmodule,'_chronos_identity',None)
     if not identity or identity[:2]!=(namespace,str(root)):raise ValueError('SIMULATION_BINDING_MISMATCH')
-    expected={'__init__.py','engine.py','proposal.py','contract.py','timeview.py','extraction.py','AGENT_INSTRUCTIONS.txt','EXTRACTION_INSTRUCTIONS.txt'}
+    expected={'__init__.py','engine.py','proposal.py','contract.py','timeview.py','extraction.py','clarification.py','AGENT_INSTRUCTIONS.txt','EXTRACTION_INSTRUCTIONS.txt'}
     if {p.name for p in package.iterdir() if p.name!='__pycache__'}!=expected:raise ValueError('UNEXPECTED_AGENT_CONTENTS')
     sources={};digest=hashlib.sha256()
     for name in sorted(expected):
@@ -92,7 +92,7 @@ ClassMethod Load(root As %String, namespace As %String, simulation As %String) A
     with control.lock:
         cached=sys.modules.get(alias)
         if cached is not None:
-            required={alias}|{alias+'.'+x for x in ('engine','proposal','timeview','extraction','contract')}
+            required={alias}|{alias+'.'+x for x in ('engine','proposal','timeview','extraction','clarification','contract')}
             if getattr(cached,'_chronos_binding',None)!=binding or {x for x in sys.modules if x==alias or x.startswith(alias+'.')}!=required:raise ValueError('PARTIAL_AGENT_PACKAGE')
             for name in required:
                 file='__init__.py' if name==alias else name[len(alias)+1:]+'.py'
@@ -105,15 +105,15 @@ ClassMethod Load(root As %String, namespace As %String, simulation As %String) A
             spec=importlib.util.spec_from_file_location(alias,package/'__init__.py',submodule_search_locations=[str(package)])
             module=importlib.util.module_from_spec(spec);sys.modules[alias]=module
             exec(compile(sources['__init__.py'],str(package/'__init__.py'),'exec'),module.__dict__)
-            for child in ('engine','proposal','timeview','extraction','contract'):
+            for child in ('engine','proposal','timeview','extraction','clarification','contract'):
                 path=package/(child+'.py');spec=importlib.util.spec_from_file_location(alias+'.'+child,path)
                 imported=importlib.util.module_from_spec(spec);sys.modules[alias+'.'+child]=imported
                 if child=='engine':imported._simulation_package=simroot
                 exec(compile(sources[child+'.py'],str(path),'exec'),imported.__dict__)
                 setattr(module,child,imported)
             module._chronos_binding=binding
-            module._chronos_prompt=sources['AGENT_INSTRUCTIONS.txt'].decode('utf-8')
-            module._chronos_extraction_prompt=sources['EXTRACTION_INSTRUCTIONS.txt'].decode('utf-8')
+            module._chronos_prompt=sources['AGENT_INSTRUCTIONS.txt'].decode('utf-8').replace('\r\n','\n')
+            module._chronos_extraction_prompt=sources['EXTRACTION_INSTRUCTIONS.txt'].decode('utf-8').replace('\r\n','\n')
         except BaseException:
             for name in tuple(sys.modules):
                 if name==alias or name.startswith(alias+'.'):del sys.modules[name]
@@ -126,6 +126,15 @@ ClassMethod Evaluate(dataRoot As %String, simulation As %String, module As %Stri
     import importlib,json
     contract=importlib.import_module(module);sim=importlib.import_module(simulation)
     args=contract.parse(arguments)
+    # Context alone obtains this fresh source from the native Workflow ledger.
+    # Never recover it from a prepared record or treat model/browser JSON as
+    # authentication. Omitting it preserves the exact legacy call surface.
+    source_kwargs={}
+    if 'clarificationSource' in args:
+        source=args['clarificationSource']
+        if type(source) is not dict or set(source)!={'record','expected_binding','native_completion'} or any(type(value) is not dict for value in source.values()):
+            raise ValueError('INVALID_NATIVE_CLARIFICATION_SOURCE')
+        source_kwargs['clarification_source']=source
     # Defense in depth for trusted callers bypassing Context.Review. A terminal
     # nonproposal cannot be human consent and need not touch the destination.
     if command=='REVIEW':
@@ -150,17 +159,17 @@ ClassMethod Evaluate(dataRoot As %String, simulation As %String, module As %Stri
     observation=runtime.observe(args['orderId']);now=sim.clock.now_us()
     if command=='PREPARE':
         result=contract.prepare(observation,args['authority'],args['contextId'],now_us=now,
-                                gate_state='OPEN',mode=args['mode'],response_contract=selected)
+                                gate_state='OPEN',mode=args['mode'],response_contract=selected,**source_kwargs)
         if result['status']=='READY':
             result['record']['runtime_binding']=binding
             result['instructions']=prompt
             result['prompt_sha256']=contract.fingerprint(prompt)
     elif command=='FINISH':
         result=contract.finish(args['record'],args['responseText'],observation,args['authority'],
-                               now_us=now,gate_state='OPEN',provider_status=args['providerStatus'])
+                               now_us=now,gate_state='OPEN',provider_status=args['providerStatus'],**source_kwargs)
     elif command=='REVIEW':
         result=contract.review(args['decision'],observation,args['authority'],
-                               now_us=now,gate_state='OPEN',generation=args['generation'])
+                               now_us=now,gate_state='OPEN',generation=args['generation'],**source_kwargs)
     else:raise ValueError('UNKNOWN_AGENT_COMMAND')
     return json.dumps(result,ensure_ascii=False,separators=(',',':'),allow_nan=False)
 }

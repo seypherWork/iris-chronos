@@ -14,7 +14,7 @@ ASSETS = (
     "boot.mjs", "client.mjs", "consent-controller.mjs", "consent-panel.mjs",
     "consent.mjs", "controller.mjs", "conversation-controller.mjs", "conversation-panel.mjs", "conversation-v2.mjs", "detail.mjs", "index.html",
     "preparation-references.mjs", "presentation.mjs", "references.mjs",
-    "render.mjs", "screen.css", "screen.mjs", "session-references.mjs",
+    "render.mjs", "screen.css", "screen.mjs", "session-references.mjs", "workflow-controller.mjs", "workflow-panel.mjs",
 )
 API_BASE = re.compile(r"/(?:[A-Za-z0-9_-]+/)*[A-Za-z0-9_-]+/?", re.ASCII)
 PLACEHOLDER = b'<meta name="chronos-api-base" content="">'

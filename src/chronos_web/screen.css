@@ -40,3 +40,90 @@ h2{font-size:1.25rem;letter-spacing:-.015em;margin:0 0 14px}h3{font-size:1rem}p{
 .chronos-outcome-notice:not([hidden]){display:flex;align-items:center;gap:12px 20px;flex-wrap:wrap;margin:0 0 16px;padding:12px 16px;border:1px solid #e5a45a;border-radius:12px;background:#332317;color:#ffe1b3}
 .chronos-outcome-notice p{flex:1 1 280px;margin:0;font-weight:650;font-size:.9rem}
 @media(max-width:700px){.chronos-outcome-notice:not([hidden]){position:sticky;top:8px;z-index:2}}
+
+/* Human clarification stays visually separate from shipment approval. */
+.chronos-workflow{border:1px solid #a97b45;border-radius:16px;padding:26px;margin:24px 0;min-width:0;background:radial-gradient(ellipse at 100% 0,#70472144,transparent 65%),#1b1713}
+.chronos-workflow>h2{font-size:1.65rem;margin-bottom:8px}.chronos-workflow-refs{overflow-wrap:anywhere}
+.chronos-workflow-form{grid-template-columns:minmax(180px,.7fr) minmax(0,1.3fr);margin:20px 0;background:#171310}
+.chronos-workflow-form textarea{font:inherit;color:inherit;background:#100e0c;border:1px solid #806144;border-radius:9px;padding:12px;width:100%;resize:vertical;min-height:90px;max-height:240px}
+.chronos-workflow-form textarea:focus-visible{outline:3px solid #ffd392;outline-offset:3px}
+.chronos-workflow-form textarea:disabled{opacity:.6}.chronos-workflow-ack{grid-column:1/-1;display:flex;flex-direction:row;align-items:flex-start;gap:12px;font-weight:450}
+.chronos-workflow-ack input{width:20px;min-width:20px;min-height:20px;margin-top:3px;accent-color:#ffbc61}
+.chronos-workflow-form>button{grid-column:1/-1;justify-self:end}
+@media(max-width:700px){.chronos-workflow{padding:18px}.chronos-workflow-form{grid-template-columns:1fr;padding:14px}.chronos-workflow-form>button{width:100%}}
+
+/* Compact workspace: original Chronos palette, logo and authorization states. */
+.chronos-workspace{padding-top:16px}
+.chronos-hero{min-height:0;padding:6px 10px 10px;margin-bottom:12px}
+.chronos-hero h1{font-size:clamp(2.25rem,3.7vw,3.65rem);line-height:1.02;margin:12px 0 8px;max-width:900px}
+.chronos-hero p{margin:6px 0}.chronos-hero .eyebrow{margin:0;font-size:.66rem;letter-spacing:.15em}
+.chronos-tagline{font-size:1.05rem}.chronos-hero .chronos-provenance{font-size:.7rem;line-height:1.4;padding:4px 10px}
+.chronos-hero .hint{margin:6px 0;font-size:.77rem}
+.chronos-route-art{width:35%;height:170px;top:24px;right:10px;opacity:.48;transform:rotate(-12deg) scale(.8)}
+.chronos-stages{margin-bottom:16px;overflow:visible}.chronos-stages li{position:relative;gap:10px;padding:11px 18px;font-size:.76rem;letter-spacing:.08em}
+.chronos-stages li:first-of-type{border-radius:11px 0 0 11px}.chronos-stages li:last-of-type{border-radius:0 11px 11px 0}
+.chronos-stages strong{font-size:.86rem;font-weight:700;opacity:.85}.chronos-stage-icon{font-size:1.5rem;line-height:1;color:#ffdb9f}
+.chronos-stage-arrow{position:absolute;right:-10px;z-index:1;border:1px solid #80603f;border-radius:50%;width:22px;height:22px;display:grid;place-items:center;background:#2b2118;color:#f3c88a;line-height:1;font-size:.85rem}
+.chronos-workspace>form{padding:16px;gap:10px;grid-template-columns:160px minmax(0,1fr)}
+.chronos-workspace>form .actions{gap:8px}.chronos-workspace>form .actions button{font-size:.8rem;min-height:44px;padding:8px 12px}
+.chronos-workspace>form .chronos-session-actions{padding-top:8px;margin-top:0}.chronos-workspace>form .chronos-session-actions button{min-height:38px;font-size:.75rem;padding:5px 10px}
+.chronos-screen-status{margin:8px 0;padding:4px 0;min-height:28px}
+.chronos-case-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:start;min-width:0}
+.chronos-current-result{min-width:0}.chronos-current-result:empty{display:none}
+.chronos-case-layout>.chronos-conversation{margin:0 0 20px;padding:20px;min-width:0}
+.chronos-case-layout>.chronos-conversation>h2{font-size:1.5rem}.chronos-case-layout>.chronos-conversation>.actions{gap:6px}
+.chronos-case-layout>.chronos-conversation>.actions button{font-size:.74rem;min-height:42px;padding:7px 10px}
+.chronos-case-layout>.chronos-conversation p.hint{font-size:.78rem}.chronos-case-layout>.chronos-conversation>p{margin:9px 0}
+.chronos-case-layout>.chronos-conversation .chronos-chat-composer{padding:14px}.chronos-case-layout>.chronos-conversation .chronos-chat-composer textarea{min-height:82px}
+.chronos-result{padding:20px;margin-bottom:16px}.chronos-result>h2{margin-bottom:8px}.chronos-result>p{margin:8px 0}
+.chronos-detail-section{margin-top:16px;padding-top:12px}.chronos-options{gap:14px;margin:14px 0}.chronos-option{padding:16px}
+.chronos-fold{margin:12px 0;padding:10px 14px}.chronos-fold summary{min-height:32px;display:list-item}
+@media(min-width:1200px){
+ .chronos-case-layout:has(>.chronos-current-result:not(:empty)):has(>.chronos-conversation:not([hidden])){grid-template-columns:minmax(0,1.4fr) minmax(340px,.9fr)}
+ .chronos-case-layout:has(>.chronos-current-result:not(:empty))>.chronos-conversation:not([hidden]){position:sticky;top:18px}
+}
+@media(max-width:700px){
+ .chronos-workspace{padding:12px}.chronos-nav{padding:10px 12px}
+ .chronos-hero{padding:6px 0 8px;margin-bottom:8px}.chronos-hero h1{font-size:clamp(1.75rem,7.2vw,2.4rem);margin:10px 0 6px}
+ .chronos-hero .eyebrow{font-size:.61rem;letter-spacing:.1em}.chronos-tagline{font-size:.95rem}
+ .chronos-hero .chronos-provenance{font-size:.66rem;padding:3px 8px}.chronos-hero .hint{font-size:.72rem}
+ .chronos-route-art{width:60%;right:-70px;top:30px;opacity:.2}
+ .chronos-stages{margin-bottom:12px}.chronos-stages li{display:grid;grid-template-columns:auto 1fr;gap:3px 6px;padding:9px 10px;font-size:.6rem;letter-spacing:.01em}
+ .chronos-stages li>span:not(.chronos-stage-icon):not(.chronos-stage-arrow){grid-column:1/-1}.chronos-stage-icon{font-size:1.1rem}.chronos-stages strong{font-size:.72rem}
+ .chronos-stage-arrow{right:-8px;width:18px;height:18px;font-size:.7rem;top:17px}
+ .chronos-workspace>form{grid-template-columns:minmax(100px,.42fr) minmax(0,1fr);padding:14px;gap:9px}
+ .chronos-workspace>form label{font-size:.78rem}.chronos-workspace>form input,.chronos-workspace>form select{min-height:44px;padding:8px}
+ .chronos-workspace>form .actions:not(.chronos-session-actions){display:grid;grid-template-columns:1fr 1fr}
+ .chronos-workspace>form .actions button{font-size:.72rem;line-height:1.35;padding:8px;min-height:44px}
+ .chronos-workspace>form .chronos-session-actions{display:flex;flex-wrap:nowrap}.chronos-workspace>form .chronos-session-actions button{width:auto;flex:1}
+ .chronos-workspace>form .hint{font-size:.72rem}.chronos-screen-status{font-size:.77rem}
+ .chronos-case-layout{gap:12px}.chronos-case-layout>.chronos-conversation,.chronos-result{padding:16px}
+ .chronos-case-layout>.chronos-conversation{position:static}.chronos-options{gap:10px}.chronos-option{padding:12px}
+ .chronos-consent-controls{position:static}
+}
+
+/* Chat: validated replies arrive as messages; pending dots track real requests. */
+.chronos-conversation-context{min-width:0;padding:20px;border:1px solid var(--line);border-radius:14px;background:#1d1915}
+.chronos-conversation-context[hidden]{display:none}.chronos-conversation-context h2{font-size:1.1rem}.chronos-conversation-context p{font-size:.84rem;color:var(--muted)}
+.chronos-chat-question{border-radius:18px 18px 4px 18px;margin-left:18%;background:linear-gradient(135deg,#64421e,#3b2a1b);border-color:#a57842}
+.chronos-chat-answer{border:0;border-left:2px solid #c49558;border-radius:4px 16px 16px 16px;margin-right:8%;padding:16px 18px;background:#181512}
+.chronos-chat-answer-text{line-height:1.65}.chronos-chat-transcript{max-height:46vh;max-height:46svh;min-height:120px}
+.chronos-chat-composer{position:sticky;bottom:0;z-index:1;border-color:#aa7d45;box-shadow:0 -12px 18px #1b1713eb;border-radius:16px}
+.chronos-chat-composer textarea{border-color:#745b3f!important;border-radius:12px!important;min-height:80px}
+.chronos-chat-composer .hint{font-size:.72rem;margin:5px 0}.chronos-chat-composer button{border-radius:12px}
+.chronos-chat-pending:not([hidden]){display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:.8rem;color:#edc78f}
+.chronos-chat-pending-dots{letter-spacing:3px;animation:chronos-wait 1.2s ease-in-out infinite}
+@keyframes chronos-wait{50%{opacity:.4}}
+@media(min-width:1200px){.chronos-case-layout:has(>.chronos-conversation-context:not([hidden])){grid-template-columns:minmax(220px,.5fr) minmax(0,1.5fr)}}
+@media(max-width:700px){.chronos-conversation-context{padding:14px}.chronos-conversation-context p{margin:6px 0}.chronos-chat-question{margin-left:8%}.chronos-chat-answer{margin-right:0}.chronos-chat-transcript{max-height:42vh;max-height:42svh}.chronos-chat-composer{bottom:6px}.chronos-chat-pending{font-size:.75rem}}
+@media(prefers-reduced-motion:reduce){.chronos-chat-pending-dots{animation:none}}
+
+.chronos-stage-icon--0::before{content:"\25ce"}.chronos-stage-icon--1::before{content:"\25c7"}.chronos-stage-icon--2::before{content:"\2197"}.chronos-stage-arrow::before{content:"\2192"}
+
+.chronos-case-layout>.chronos-conversation[data-chat-active=true]{display:flex;flex-direction:column;max-height:calc(100svh - 36px);overflow:hidden}
+.chronos-conversation[data-chat-active=true]>.chronos-chat-transcript{flex:1 1 auto;min-height:160px;max-height:none;margin:12px 0}
+.chronos-conversation[data-chat-active=true]>:not(.chronos-chat-transcript){flex-shrink:0}
+.chronos-chat-setup{margin:8px 0!important;padding:7px 12px!important}.chronos-chat-setup summary{font-size:.76rem;min-height:28px}.chronos-chat-setup .actions{margin:8px 0}
+.chronos-conversation[data-chat-active=true] .chronos-chat-composer{box-shadow:none;margin:8px 0 0}
+@media(max-width:700px){.chronos-case-layout>.chronos-conversation[data-chat-active=true]{max-height:calc(100svh - 24px)}.chronos-conversation[data-chat-active=true]>.chronos-chat-transcript{min-height:150px}.chronos-conversation[data-chat-active=true]>h2{margin-bottom:4px}.chronos-conversation[data-chat-active=true]>.hint{font-size:.72rem;line-height:1.4}}
+.chronos-conversation[data-chat-ready=true]>.chronos-chat-launch{display:none}.chronos-conversation[data-has-turns=true][data-recorded=false]>.chronos-chat-prompts{display:none}

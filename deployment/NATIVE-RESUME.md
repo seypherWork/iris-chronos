@@ -13,6 +13,11 @@ engine-interruption tests 149/150 passed on installation 145. See the
 before treating a particular bundle as verified. Earlier clean-resume and
 journal-durability results do not automatically validate changed source.
 
+After an engine container restart, follow [transport reconnection](TRANSPORT-RECONNECT.md)
+before treating chat/model connectivity as restored. Existing sidecars can
+remain in the old network namespace even when their container IDs match.
+This is separate from native production recovery and never grants approval.
+
 ## Common preparation
 
 Start only the owned IRIS container using its existing Compose configuration.

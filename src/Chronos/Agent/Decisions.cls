@@ -31,6 +31,28 @@ ClassMethod Claim(requestId As %String, Output result As %DynamicObject, expecte
 {
     Set result={"code":"RUNTIME_NOT_READY","inferenceGranted":false,"dispatch_authorized":false}
     If $TLevel Return $$$ERROR($$$GeneralError,"DECISION_REQUIRES_NO_TRANSACTION")
+    // A completed Workflow task is read before bootLock, never while waiting
+    // on a native Task owned by a completer that itself needs bootLock.
+    // This read is not a grant: the private decision and current full authority
+    // are compared again under bootLock before the one-use ledger CLAIM.
+    Set clarified=0,prior="",fresh={}
+    Set sc=##class(Chronos.Agent.Ledger).Apply("INSPECT",{"requestId":(requestId)},.initial)
+    If $$$ISERR(sc) Return sc
+    If initial.%GetTypeOf("private")="object" {
+        Set seed=initial.private
+        If (seed.%Get("state")="PREPARED")&&(seed.%GetTypeOf("prepared")="object") {
+            If seed.prepared.%GetTypeOf("record")="object" {
+                If seed.prepared.record.%IsDefined("clarification_binding")||seed.%IsDefined("clarificationAnchor") {
+                    Set clarified=1,prior=seed.%ToJSON()
+                    Set sc=##class(Chronos.Agent.Context).Reprepare(requestId,.fresh)
+                    If $$$ISERR(sc) {
+                        Set result={"code":"CLAIM_UNAVAILABLE","inferenceGranted":false,"dispatch_authorized":false}
+                        Return sc
+                    }
+                }
+            }
+        }
+    }
     Lock +^ChronosRuntime("bootLock"):0
     If '$Test Return $$$OK
     Set sc=$$$OK
@@ -48,12 +70,30 @@ ClassMethod Claim(requestId As %String, Output result As %DynamicObject, expecte
         If read.code'="NOT_FOUND" {
             If (expectedGeneration'="")&&(d.generation'=expectedGeneration) Throw ##class(%Exception.General).%New("STALE_REQUEST_GENERATION")
             If d.state="PREPARED" {
-                Set sc=##class(Chronos.Agent.Context).Prepare(d.orderId,d.shipmentVersion,d.requestId,d.mode,.fresh)
-                $$$ThrowOnError(sc)
+                Set hasReference=d.prepared.record.%IsDefined("clarification_binding")||d.%IsDefined("clarificationAnchor")
+                If hasReference {
+                    If 'clarified||(d.%ToJSON()'=prior) Throw ##class(%Exception.General).%New("CLARIFIED_DECISION_CHANGED")
+                } Else {
+                    If clarified Throw ##class(%Exception.General).%New("CLARIFICATION_DISAPPEARED")
+                    Set sc=##class(Chronos.Agent.Context).Prepare(d.orderId,d.shipmentVersion,d.requestId,d.mode,.fresh)
+                    $$$ThrowOnError(sc)
+                }
                 Set matched=0
                 If fresh.status="READY" {
                     Set old=d.prepared.record,new=fresh.record
                     Set matched=(fresh.%Get("runtime_generation")=d.generation)&&(old.%Get("authority_stamp")=new.%Get("authority_stamp"))&&(old.%Get("facts_digest")=new.%Get("facts_digest"))&&(old.%Get("runtime_binding").%ToJSON()=new.%Get("runtime_binding").%ToJSON())
+                    If hasReference,matched {
+                        If (old.%GetTypeOf("clarification_binding")'="object")||(new.%GetTypeOf("clarification_binding")'="object") {
+                            Set matched=0
+                        } ElseIf old.%Get("clarification_binding").%ToJSON()'=new.%Get("clarification_binding").%ToJSON() {
+                            Set matched=0
+                        }
+                        If matched {
+                            Set sc=##class(Chronos.Authority.Store).Apply("READ",{"orderId":(d.orderId),"shipmentVersion":(d.shipmentVersion)},.authority)
+                            $$$ThrowOnError(sc)
+                            Set matched=..AuthorityMatches(new.%Get("authority_stamp"),authority.%ToJSON())
+                        }
+                    }
                 }
                 If 'matched {
                     Set sc=##class(Chronos.Agent.Ledger).Apply("CANCEL",{"requestId":(requestId)},.result)
@@ -69,6 +109,33 @@ ClassMethod Claim(requestId As %String, Output result As %DynamicObject, expecte
     }
     Lock -^ChronosRuntime("bootLock")
     Return sc
+}
+
+/// Full inference stamp, including the current observation nonce. The two
+/// Workflow preference-renewal exclusions never apply to a model CLAIM.
+ClassMethod AuthorityMatches(authorityStamp As %String, authorityJSON As %String) As %Boolean [ Language = python, Private ]
+{
+    import json
+    from hashlib import sha256
+    try:
+        def pairs(items):
+            out={}
+            for key,value in items:
+                if key in out:raise ValueError('DUPLICATE_FIELD')
+                out[key]=value
+            return out
+        def invalid(_):raise ValueError('NONFINITE_JSON')
+        def parse(raw):
+            if type(raw) is not str or not 0<len(raw.encode('utf-8'))<=32768:raise ValueError('INVALID_JSON_SIZE')
+            return json.loads(raw,object_pairs_hook=pairs,parse_constant=invalid)
+        if type(authorityStamp) is not str or len(authorityStamp)!=64 or any(c not in '0123456789abcdef' for c in authorityStamp):return False
+        authority=parse(authorityJSON)
+        if type(authority) is not dict:return False
+        if type(authority.get('effect')) is not dict or type(authority.get('operation')) is not dict:return False
+        encoded=json.dumps({'effect':authority['effect'],'operation':authority['operation']},sort_keys=True,ensure_ascii=False,separators=(',',':'),allow_nan=False).encode('utf-8')
+        return authorityStamp==sha256(encoded).hexdigest()
+    except Exception:
+        return False
 }
 
 ClassMethod Finish(requestId As %String, claimId As %String, responseText As %String, providerStatus As %String, Output result As %DynamicObject) As %Status

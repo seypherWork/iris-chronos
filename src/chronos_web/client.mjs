@@ -8,6 +8,31 @@ const ID = /^[A-Za-z0-9_.-]{1,128}$/;
 const CODE = /^[A-Z0-9_]{1,80}$/;
 const CSRF = /^[0-9a-f]{64}$/;
 const MAX_BYTES = 512 * 1024;
+export const RECORDED_QUESTIONS = Object.freeze([
+  "Why was this option recommended?", "What is the current operation status?",
+  "Does acceptance prove physical delivery?", "What can I do next?",
+]);
+const unknownExecution = () => Object.freeze({mode:"UNVERIFIED",model:null,
+  replayCorpusSha256:null,replayFixtureSha256:null,supportedQuestions:Object.freeze([])});
+function sessionExecution(value) {
+  if (!Object.hasOwn(value,"execution")) return unknownExecution();
+  const x=value.execution;
+  if (!record(x) || Object.keys(x).sort().join(",") !==
+      ["mode","model","replayCorpusSha256","replayFixtureSha256","supportedQuestions"].sort().join(",") ||
+      !Array.isArray(x.supportedQuestions)) throw new ChronosClientError("INVALID_SESSION");
+  const model=typeof x.model==="string"&&/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(x.model);
+  if (x.mode==="RECORDED_FIXTURE") {
+    if (x.model!=="chronos-recorded-fixture-v1" ||
+        ![x.replayCorpusSha256,x.replayFixtureSha256].every(v=>typeof v==="string"&&CSRF.test(v)) ||
+        x.supportedQuestions.length!==RECORDED_QUESTIONS.length ||
+        !RECORDED_QUESTIONS.every((q,i)=>x.supportedQuestions[i]===q)) throw new ChronosClientError("INVALID_SESSION");
+  } else if (!["LIVE_MODEL","NOT_CONFIGURED"].includes(x.mode) ||
+      (x.mode==="LIVE_MODEL" ? !model||x.model==="chronos-recorded-fixture-v1" : x.model!==null) ||
+      x.replayCorpusSha256!==null || x.replayFixtureSha256!==null || x.supportedQuestions.length) {
+    throw new ChronosClientError("INVALID_SESSION");
+  }
+  return Object.freeze({...x,supportedQuestions:Object.freeze([...x.supportedQuestions])});
+}
 const COMMANDS = Object.freeze({
   DECISION: ["decision", "read"], DECISION_DETAIL: ["decision", "read"], DECISION_OPERATION: ["decision", "read"], RESOLVE_DECISION: ["decision", "approve"],
   PREVIEW: ["approval", "approve"], READ: ["approval", "read"],
@@ -18,7 +43,8 @@ const COMMANDS = Object.freeze({
 });
 const CORRELATED = new Set(["PREVIEW_REQUEST", "CLOSE_PREPARATION"]);
 const MAY_CHANGE = new Set(["PREVIEW_REQUEST", "CLOSE_PREPARATION", "PREVIEW", "CONFIRM", "REJECT", "RECONCILE", "RECONCILE_OPERATION",
-  "RESOLVE_DECISION", "LOGOUT", "CONVERSATION_OPEN", "CONVERSATION_RECORD"]);
+  "RESOLVE_DECISION", "LOGOUT", "CONVERSATION_OPEN", "CONVERSATION_RECORD",
+  "START_CLARIFICATION", "COMPLETE_CLARIFICATION", "REEVALUATE_CLARIFICATION"]);
 const SESSION_CODES = new Set(["PERMISSION_DENIED", "IDENTITY_UNAVAILABLE",
   "SESSION_UNAVAILABLE", "ACCESS_REVOKED", "CSRF_REJECTED", "CALL_CONTEXT_CHANGED"]);
 
@@ -136,7 +162,8 @@ export function createChronosClient({
   const base = installation(pageUrl, basePath);
   if (typeof fetchImpl !== "function" || !Number.isInteger(timeoutMs) ||
       timeoutMs < 1 || timeoutMs > 40000) throw new ChronosClientError("INVALID_INSTALLATION");
-  let epoch = 0, csrf = "", capabilities = status(), identity = unavailableIdentity(), busy = false, canConverse = false;
+  let epoch = 0, csrf = "", capabilities = status(), identity = unavailableIdentity(), busy = false, canConverse = false,
+    execution = unknownExecution();
   const active = new Set();
 
   function clear(reason = "CONNECTION_CHANGED") {
@@ -145,6 +172,7 @@ export function createChronosClient({
     capabilities = status();
     canConverse = false;
     identity = unavailableIdentity();
+    execution = unknownExecution();
     busy = false;
     for (const controller of active) controller.abort(reason);
     active.clear();
@@ -210,6 +238,7 @@ export function createChronosClient({
       }
       canConverse = value.canConverse === true;
       identity = sessionIdentity(value, value.canRead, base);
+      execution = sessionExecution(value);
       csrf = value.csrf;
       capabilities = status(true, value.canRead, value.canApprove);
       return capabilities;
@@ -266,6 +295,107 @@ export function createChronosClient({
   }
 
 
+  // These commands never send a shipment or confer consent. IDs are references
+  // for explicit reads; a lost reply must not trigger a repeated mutation.
+  async function workflowRequest(command, firstId, secondId, form) {
+    const decision = command === "START_CLARIFICATION" || command === "READ_CLARIFICATION";
+    const completion = command === "COMPLETE_CLARIFICATION" || command === "READ_CLARIFICATION_COMPLETION";
+    const reevaluate = command === "REEVALUATE_CLARIFICATION";
+    const mayChange = MAY_CHANGE.has(command);
+    const ident = value => typeof value === "string" && ID.test(value);
+    const exact = (value, keys) => record(value) &&
+      Object.keys(value).sort().join(",") === [...keys].sort().join(",");
+    const integer = value => Number.isSafeInteger(value) && value >= 0;
+    const reference = ident(reevaluate ? secondId : firstId) ? (reevaluate ? secondId : firstId) : "";
+    const fail = (code, applied = false) => {
+      const error = new ChronosClientError(code, {command, id: reference, mayHaveApplied: applied});
+      error.decisionId = decision ? reference : reevaluate ? reference : "";
+      error.clarificationId = !decision && ident(firstId) ? firstId : "";
+      error.completionId = completion && ident(secondId) ? secondId : "";
+      return error;
+    };
+    if (!(decision || completion || reevaluate) || !ident(firstId) ||
+        (decision ? secondId !== undefined || form !== undefined : !ident(secondId)) ||
+        (reevaluate && (secondId.length > 64 || form !== undefined))) throw fail("INVALID_REQUEST");
+    if (completion) {
+      if (!exact(form, ["preference", "note"]) ||
+          !["EARLIEST_ALLOWED", "CHEAPEST_ON_TIME"].includes(form.preference) ||
+          typeof form.note !== "string" || form.note !== form.note.trim() ||
+          [...form.note].length < 1 || [...form.note].length > 240 ||
+          /[\p{C}\\]/u.test(form.note)) throw fail("INVALID_REQUEST");
+    }
+    if (busy) throw fail("REQUEST_IN_PROGRESS");
+    if (!capabilities.connected || !csrf) throw fail("SESSION_REQUIRED");
+    if (!capabilities.canRead || (command !== "READ_CLARIFICATION" && !capabilities.canApprove)) {
+      throw fail("PERMISSION_DENIED");
+    }
+    if (reevaluate && execution.mode === "RECORDED_FIXTURE") throw fail("RECORDED_INPUT_UNSUPPORTED");
+    const body = decision ? {command, decisionId: firstId} : completion ?
+      {command, clarificationId: firstId, completionId: secondId, preference: form.preference, note: form.note} :
+      {command, clarificationId: firstId, requestId: secondId};
+    if (new TextEncoder().encode(JSON.stringify(body)).length > 4096) throw fail("INVALID_REQUEST");
+    const version = epoch;
+    busy = true;
+    try {
+      const value = await exchange("workflow", "POST", body, csrf, command, reference, version);
+      if (version !== epoch) throw fail("CONNECTION_CHANGED", mayChange);
+      if (SESSION_CODES.has(value.code)) throw fail("SESSION_REQUIRED", mayChange);
+      // Only the fixed native unavailability projection is shared across
+      // commands. No arbitrary reduced or raw envelope is treated as a result.
+      if (exact(value, ["code", "dispatch_authorized", "readbackRequired"]) &&
+          value.code === "WORKFLOW_RESULT_UNAVAILABLE" && value.dispatch_authorized === false &&
+          value.readbackRequired === true) return value;
+      if (decision) {
+        if (!exact(value, ["code", "decisionId", "clarificationId", "newDecisionId", "state", "expiresUS", "taskReady",
+            "completionRecorded", "canUseClarification", "dispatch_authorized"]) || value.decisionId !== firstId ||
+            !(value.clarificationId === "" || ident(value.clarificationId)) ||
+            !(value.newDecisionId === "" || ident(value.newDecisionId)) ||
+            !["UNAVAILABLE", "NOT_FOUND", "QUEUED", "SEND_FENCED", "SENT", "CREATION_UNCERTAIN",
+              "RESPONSE_UNVERIFIED", "EXPIRED"].includes(value.state) ||
+            !(value.expiresUS === null || integer(value.expiresUS)) ||
+            typeof value.taskReady !== "boolean" || typeof value.completionRecorded !== "boolean" ||
+            value.canUseClarification !== false || value.dispatch_authorized !== false ||
+            value.completionRecorded && (value.clarificationId === "" || ["NOT_FOUND", "QUEUED"].includes(value.state)) ||
+            value.newDecisionId !== "" && (value.clarificationId === "" || !value.completionRecorded)) {
+          throw fail("INVALID_WORKFLOW_RESPONSE", mayChange);
+        }
+      } else if (completion) {
+        const required = ["code", "actorVerified", "completionVerified", "canUseClarification", "dispatch_authorized"];
+        const optional = ["clarificationId", "completionId", "state", "expiresUS", "completedUS"];
+        if (!record(value) || required.some(key => !Object.hasOwn(value, key)) ||
+            Object.keys(value).some(key => !required.includes(key) && !optional.includes(key)) ||
+            value.canUseClarification !== false || value.dispatch_authorized !== false ||
+            value.actorVerified !== (value.code === "WORKFLOW_CLARIFICATION_RECORDED") ||
+            value.completionVerified !== (value.code === "WORKFLOW_CLARIFICATION_RECORDED") ||
+            Object.hasOwn(value, "clarificationId") && value.clarificationId !== firstId ||
+            Object.hasOwn(value, "completionId") && value.completionId !== secondId ||
+            Object.hasOwn(value, "state") && !["NEW", "FENCED", "UNCERTAIN", "VERIFIED_CSP"].includes(value.state) ||
+            Object.hasOwn(value, "expiresUS") && !integer(value.expiresUS) ||
+            Object.hasOwn(value, "completedUS") && !integer(value.completedUS) ||
+            Object.hasOwn(value, "completedUS") && Object.hasOwn(value, "expiresUS") && value.completedUS >= value.expiresUS ||
+            value.code === "WORKFLOW_CLARIFICATION_RECORDED" && Object.hasOwn(value, "state") && value.state !== "VERIFIED_CSP") {
+          throw fail("INVALID_WORKFLOW_RESPONSE", mayChange);
+        }
+      } else if (!exact(value, ["code", "decisionId", "readbackRequired", "dispatch_authorized"]) ||
+          value.decisionId !== secondId || value.readbackRequired !== true || value.dispatch_authorized !== false) {
+        throw fail("INVALID_WORKFLOW_RESPONSE", mayChange);
+      }
+      // Native verification remains the source of truth. In particular,
+      // actorVerified is not a dispatch grant or permission to skip fresh review.
+      return value;
+    } catch (error) {
+      if (version === epoch) clear();
+      if (error instanceof ChronosClientError) {
+        error.decisionId = decision ? reference : reevaluate ? reference : "";
+        error.clarificationId = !decision && ident(firstId) ? firstId : "";
+        error.completionId = completion && ident(secondId) ? secondId : "";
+      }
+      throw error;
+    } finally {
+      if (version === epoch) busy = false;
+    }
+  }
+
   async function conversationRequest(command, conversationId, decisionId, fields) {
     const fail = (code, applied = false) => {
       const error = new ChronosClientError(code, {command: "CONVERSATION_" + command,
@@ -315,7 +445,7 @@ export function createChronosClient({
         [...prefs,"UNRESOLVED"].includes(s.interpreted_preference) && typeof s.reason_code === "string" && CODE.test(s.reason_code) &&
         exact(s.attribution,["responseContract","interpretationOrigin","selectionOrigin"]) &&
         ["chronos.agent-proposal.v2","chronos.preference-extraction.v1"].includes(s.attribution.responseContract) &&
-        ["MODEL","NOT_RECORDED"].includes(s.attribution.interpretationOrigin) && ["DETERMINISTIC_CODE","NOT_RECORDED"].includes(s.attribution.selectionOrigin);
+        ["MODEL","RECORDED_MODEL","NOT_RECORDED"].includes(s.attribution.interpretationOrigin) && ["DETERMINISTIC_CODE","NOT_RECORDED"].includes(s.attribution.selectionOrigin);
       if (s.id === "finish") return exact(s,["id","kind","decision_id","decision_digest","receipt","receipt_digest","policy","trial_mode","time_unit","cost_unit"]) &&
         s.kind === "ARCHIVED_FINISH_VALIDATION" && hash(s.decision_digest) && hash(s.receipt_digest) && receipt(s.receipt) &&
         exact(s.policy,["budget","deadline","inventory_expires","offer_until"]) && Object.values(s.policy).every(integer) &&
@@ -375,6 +505,8 @@ export function createChronosClient({
     if (busy) throw fail("REQUEST_IN_PROGRESS");
     if (!capabilities.connected || !csrf) throw fail("SESSION_REQUIRED");
     if (!capabilities.canRead || !canConverse) throw fail("CONVERSATION_UNAVAILABLE");
+    if (command === "RECORD" && execution.mode === "RECORDED_FIXTURE" &&
+        !execution.supportedQuestions.includes(fields.text)) throw fail("RECORDED_INPUT_UNSUPPORTED");
     const body = {command, conversationId, decisionId, ...(fields ?? {})};
     const version = epoch, mayChange = command !== "READ";
     busy = true;
@@ -506,7 +638,16 @@ export function createChronosClient({
   return Object.freeze({
     connect, logout, disconnect: () => clear(), sessionStatus: () => capabilities,
     sessionIdentity: () => identity,
+    sessionExecution: () => execution,
     conversationAvailable: () => canConverse,
+    startClarification: decisionId => workflowRequest("START_CLARIFICATION", decisionId),
+    readClarification: decisionId => workflowRequest("READ_CLARIFICATION", decisionId),
+    completeClarification: (clarificationId, completionId, form) =>
+      workflowRequest("COMPLETE_CLARIFICATION", clarificationId, completionId, form),
+    readClarificationCompletion: (clarificationId, completionId, form) =>
+      workflowRequest("READ_CLARIFICATION_COMPLETION", clarificationId, completionId, form),
+    reevaluateClarification: (clarificationId, requestId) =>
+      workflowRequest("REEVALUATE_CLARIFICATION", clarificationId, requestId),
     openConversation: (conversationId, decisionId) => conversationRequest("OPEN", conversationId, decisionId),
     readConversation: (conversationId, decisionId) => conversationRequest("READ", conversationId, decisionId),
     recordConversation: (conversationId, decisionId, fields) => conversationRequest("RECORD", conversationId, decisionId, fields),

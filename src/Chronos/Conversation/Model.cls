@@ -20,14 +20,14 @@ ClassMethod Storage(Output destination As %String) As %Status [ Private ]
 }
 
 /// Trusted installation only. No HTTP configuration route; immutable once written.
-ClassMethod Configure(baseURL As %String, model As %String, profileSha256 As %String, reasoningEffort As %String = "low", responseContract As %String = "chronos.case-conversation.v1") As %Status
+ClassMethod Configure(baseURL As %String, model As %String, profileSha256 As %String, reasoningEffort As %String = "low", responseContract As %String = "chronos.case-conversation.v1", executionMode As %String = "LIVE_MODEL", replayCorpusSha256 As %String = "", replayFixtureSha256 As %String = "") As %Status
 {
     If $TLevel Return $$$ERROR($$$GeneralError,"MODEL_CONFIG_REQUIRES_NO_TRANSACTION")
     Lock +^ChronosRuntime("bootLock"):0
     If '$Test Return $$$ERROR($$$GeneralError,"RUNTIME_BUSY")
     Set sc=$$$OK
     Try {
-        Set cfg=..Spec(baseURL,model,profileSha256,reasoningEffort,..ContractSchema(responseContract).%ToJSON())
+        Set cfg=..Spec(baseURL,model,profileSha256,reasoningEffort,..ContractSchema(responseContract).%ToJSON(),executionMode,replayCorpusSha256,replayFixtureSha256)
         Set sc=##class(Ens.Director).GetProductionStatus(.name,.state,0) $$$ThrowOnError(sc)
         If state'=2 Throw ##class(%Exception.General).%New("CONFIGURE_WHILE_STOPPED")
         Set sc=..Storage(.destination) $$$ThrowOnError(sc)
@@ -61,7 +61,7 @@ ClassMethod Current(Output cfg As %DynamicObject) As %Status
         Set storageStatus=..Storage(.destination) $$$ThrowOnError(storageStatus)
         Set candidate=##class(%DynamicObject).%FromJSON(raw)
         If 'candidate.%IsA("%DynamicObject") Throw ##class(%Exception.General).%New("INVALID_CONFIGURATION")
-        Set checked=..Spec(candidate.baseURL,candidate.model,candidate.profileSha256,candidate.reasoningEffort,..ContractSchema(candidate.contract).%ToJSON())
+        Set checked=..Spec(candidate.baseURL,candidate.model,candidate.profileSha256,candidate.reasoningEffort,..ContractSchema(candidate.contract).%ToJSON(),candidate.%Get("executionMode","LIVE_MODEL"),candidate.%Get("replayCorpusSha256"),candidate.%Get("replayFixtureSha256"))
         If checked'=raw Throw ##class(%Exception.General).%New("MODEL_CONFIGURATION_CHANGED")
         Set cfg=candidate
     } Catch ex {
@@ -76,7 +76,7 @@ ClassMethod Available() As %Boolean
 }
 
 /// Exact schema/profile fingerprint; no network and no runtime modifications.
-ClassMethod Spec(baseURL As %String, model As %String, profileSha256 As %String, reasoningEffort As %String, schemaJSON As %String) As %String [ Language = python ]
+ClassMethod Spec(baseURL As %String, model As %String, profileSha256 As %String, reasoningEffort As %String, schemaJSON As %String, executionMode As %String = "LIVE_MODEL", replayCorpusSha256 As %String = "", replayFixtureSha256 As %String = "") As %String [ Language = python ]
 {
     import hashlib,json,re
     if type(baseURL) is not str:raise ValueError('LOCAL_GUARD_REQUIRED')
@@ -91,9 +91,16 @@ ClassMethod Spec(baseURL As %String, model As %String, profileSha256 As %String,
     marker=schema.get('properties',{}).get('schema',{}).get('enum')
     if marker not in (['chronos.case-conversation.v1'],['chronos.case-explanation-plan.v1'],['chronos.case-explanation-plan.v2']):raise ValueError('INVALID_CONVERSATION_SCHEMA')
     canonical=lambda x:json.dumps(x,sort_keys=True,separators=(',',':'),ensure_ascii=True)
-    return canonical(dict(baseURL=baseURL,model=model,profileSha256=profileSha256,
+    value=dict(baseURL=baseURL,model=model,profileSha256=profileSha256,
         reasoningEffort=reasoningEffort,contract=marker[0],
-        schemaSha256=hashlib.sha256(canonical(schema).encode()).hexdigest()))
+        schemaSha256=hashlib.sha256(canonical(schema).encode()).hexdigest())
+    if executionMode=='RECORDED_FIXTURE':
+        if model!='chronos-recorded-fixture-v1' or reasoningEffort!='none' or marker!=['chronos.case-explanation-plan.v2']:raise ValueError('INVALID_REPLAY_CONFIGURATION')
+        if any(type(h) is not str or re.fullmatch(r'[a-f0-9]{64}',h) is None for h in (replayCorpusSha256,replayFixtureSha256)):raise ValueError('REPLAY_BINDING_REQUIRED')
+        value.update(executionMode=executionMode,replayCorpusSha256=replayCorpusSha256,replayFixtureSha256=replayFixtureSha256)
+    elif executionMode!='LIVE_MODEL' or model=='chronos-recorded-fixture-v1' or replayCorpusSha256 or replayFixtureSha256:
+        raise ValueError('INVALID_EXECUTION_MODE')
+    return canonical(value)
 }
 
 /// One new recorded turn -> one durable reservation -> at most one Chat invocation.

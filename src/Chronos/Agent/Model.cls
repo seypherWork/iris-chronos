@@ -3,7 +3,7 @@ Include %occStatus
 /// AI Hub 154, installation-pinned local guard. Never caller-controlled settings.
 Class Chronos.Agent.Model Extends %RegisteredObject
 {
-ClassMethod Configure(baseURL As %String, model As %String = "qwen38:cyber-32k", profileSha256 As %String = "", reasoningEffort As %String = "none", responseContract As %String = "chronos.agent-proposal.v2") As %Status
+ClassMethod Configure(baseURL As %String, model As %String = "qwen38:cyber-32k", profileSha256 As %String = "", reasoningEffort As %String = "none", responseContract As %String = "chronos.agent-proposal.v2", executionMode As %String = "LIVE_MODEL", replayCorpusSha256 As %String = "", replayFixtureSha256 As %String = "") As %Status
 {
     If $TLevel Return $$$ERROR($$$GeneralError,"MODEL_CONFIG_REQUIRES_NO_TRANSACTION")
     Set host=$Piece(baseURL,":",1,2),tail=$Piece(baseURL,":",3),port=$Piece(tail,"/",1)
@@ -15,13 +15,18 @@ ClassMethod Configure(baseURL As %String, model As %String = "qwen38:cyber-32k",
     } Else {
         If ($Length(profileSha256)'=64)||($Translate(profileSha256,"0123456789abcdef")'="") Return $$$ERROR($$$GeneralError,"INVALID_MODEL_PROFILE")
     }
-    If (reasoningEffort'="none")&&(reasoningEffort'="low")&&(reasoningEffort'="medium") Return $$$ERROR($$$GeneralError,"INVALID_REASONING_EFFORT")
-    If (reasoningEffort'="none")&&(profileSha256="") Return $$$ERROR($$$GeneralError,"REASONING_PROFILE_REQUIRED")
+    Set reasoningStatus=..CheckReasoning(reasoningEffort,profileSha256,responseContract)
+    If $$$ISERR(reasoningStatus) Return reasoningStatus
     If (responseContract'="chronos.agent-proposal.v2")&&(responseContract'="chronos.preference-extraction.v1") Return $$$ERROR($$$GeneralError,"UNSUPPORTED_RESPONSE_CONTRACT")
     If (responseContract="chronos.preference-extraction.v1")&&(profileSha256="") Return $$$ERROR($$$GeneralError,"EXTRACTION_PROFILE_REQUIRED")
+    Set modeStatus=..CheckExecution(executionMode,model,profileSha256,reasoningEffort,replayCorpusSha256,replayFixtureSha256)
+    If $$$ISERR(modeStatus) Return modeStatus
     Set cfg={"baseURL":(baseURL),"model":(model),"contract":(responseContract)}
     If reasoningEffort'="none" Set cfg.reasoningEffort=reasoningEffort
     If profileSha256'="" Set cfg.profileSha256=profileSha256
+    If executionMode="RECORDED_FIXTURE" {
+        Set cfg.executionMode=executionMode,cfg.replayCorpusSha256=replayCorpusSha256,cfg.replayFixtureSha256=replayFixtureSha256
+    }
     Lock +^ChronosRuntime("bootLock"):0
     If '$Test Return $$$ERROR($$$GeneralError,"RUNTIME_BUSY")
     Set sc=$$$OK
@@ -40,6 +45,29 @@ ClassMethod Configure(baseURL As %String, model As %String = "qwen38:cyber-32k",
     Return sc
 }
 
+/// Boolean thinking is opt-in for a profile-bound extraction contract only.
+ClassMethod CheckReasoning(effort As %String, profile As %String, contract As %String) As %Status
+{
+    If (effort'="none")&&(effort'="low")&&(effort'="medium")&&(effort'="on") Return $$$ERROR($$$GeneralError,"INVALID_REASONING_EFFORT")
+    If (effort'="none")&&(profile="") Return $$$ERROR($$$GeneralError,"REASONING_PROFILE_REQUIRED")
+    If (effort="on")&&(contract'="chronos.preference-extraction.v1") Return $$$ERROR($$$GeneralError,"BOOLEAN_THINKING_E1_ONLY")
+    Return $$$OK
+}
+
+/// Installed mode only. A browser request can neither select nor change it.
+ClassMethod CheckExecution(mode As %String, model As %String, profile As %String, effort As %String, corpus As %String, fixture As %String) As %Status
+{
+    If mode="LIVE_MODEL" {
+        If (model="chronos-recorded-fixture-v1")||(corpus'="")||(fixture'="") Return $$$ERROR($$$GeneralError,"REPLAY_MODE_REQUIRED")
+        Return $$$OK
+    }
+    If (mode'="RECORDED_FIXTURE")||(model'="chronos-recorded-fixture-v1")||(effort'="none") Return $$$ERROR($$$GeneralError,"INVALID_REPLAY_CONFIGURATION")
+    For value=profile,corpus,fixture {
+        If ($Length(value)'=64)||($Translate(value,"0123456789abcdef")'="") Return $$$ERROR($$$GeneralError,"REPLAY_BINDING_REQUIRED")
+    }
+    Return $$$OK
+}
+
 /// One grant -> one Chat invocation. Closing SDK objects is not model cancellation.
 ClassMethod Run(adapter As Chronos.Agent.GuardAdapter, requestId As %String, traceId As %String, deadlineUS As %Numeric, Output result As %DynamicObject, expectedGeneration As %String = "", Output traceMetrics As %DynamicObject = "") As %Status
 {
@@ -51,6 +79,9 @@ ClassMethod Run(adapter As Chronos.Agent.GuardAdapter, requestId As %String, tra
     Try {
         Set cfg=##class(%DynamicObject).%FromJSON(^ChronosAI18("config")),reasoning="none",contract=..Contract()
         If cfg.%IsDefined("reasoningEffort") Set reasoning=cfg.reasoningEffort
+        Set sc=..CheckReasoning(reasoning,cfg.%Get("profileSha256"),contract) $$$ThrowOnError(sc)
+        Set executionMode=cfg.%Get("executionMode","LIVE_MODEL")
+        Set sc=..CheckExecution(executionMode,cfg.model,cfg.%Get("profileSha256"),reasoning,cfg.%Get("replayCorpusSha256"),cfg.%Get("replayFixtureSha256")) $$$ThrowOnError(sc)
         Set sc=##class(Chronos.Agent.Decisions).Claim(requestId,.grant,expectedGeneration)
         $$$ThrowOnError(sc)
         Set result=grant
@@ -118,7 +149,7 @@ ClassMethod Run(adapter As Chronos.Agent.GuardAdapter, requestId As %String, tra
         Set sc=##class(Chronos.Agent.Decisions).Finish(requestId,grant.claimId,text,status,.result)
         If $$$ISERR(sc) {
             Set result={"code":"MODEL_RESULT_UNCERTAIN","dispatch_authorized":false}
-        } ElseIf status="ok" {
+        } ElseIf (status="ok")&&(executionMode'="RECORDED_FIXTURE") {
             Try { Set traceMetrics=..BuildTraceMetrics(traceUsage,chatStartedUS,chatEndedUS) } Catch traceError { Set traceMetrics="" }
         }
     }

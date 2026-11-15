@@ -5,17 +5,20 @@ Transport errors remain uncertain. Status never grants mutation authorization.
 """
 from __future__ import annotations
 import argparse
+from hashlib import sha256
 import importlib.util
 import json
 import os
 from pathlib import Path
 import re
 import sqlite3
+import stat
 import subprocess
 import sys
 import uuid
 
 HERE = Path(__file__).resolve().parent
+CONVERSATION_RUNTIME = Path("/opt/chronos/conversation-runtime")
 
 
 def sibling(name):
@@ -117,8 +120,75 @@ def execute(action, ident, origin, application, digest, profile, *, authorized=F
         return report(ident, digest, profile, "OUTCOME_UNCERTAIN_USE_STATUS")
 
 
-def provider_profile(ident):
-    return sibling("conversation_provider").status(ident)
+def directory(path):
+    info = path.lstat()
+    require(stat.S_ISDIR(info.st_mode) and not stat.S_ISLNK(info.st_mode)
+            and not getattr(info, "st_file_attributes", 0) & 0x400, "LINKED_CONVERSATION_RUNTIME")
+
+
+def recorded_profile(value, ident):
+    """Validate a bounded status result; this does not assert model inference."""
+    fields = {"schema_version", "status", "mode", "ready", "model_tested", "fresh_inference",
+              "profile", "profile_sha256", "binding_sha256", "allowance", "native_configuration"}
+    require(type(value) is dict and set(value) == fields and
+            value["schema_version"] == "chronos.fixture-provider.v1" and value["status"] == "CONFIGURED_NOT_PROBED"
+            and value["mode"] == "RECORDED_FIXTURE" and value["ready"] is False and
+            value["model_tested"] is False and value["fresh_inference"] is False, "INVALID_RECORDED_STATUS")
+    profile = value["profile"]
+    profile_fields = {"version", "deployment_id", "provider", "model", "schema_sha256", "request_limit",
+                      "local_port", "reasoning_effort", "response_contract", "replay_corpus_sha256", "replay_fixture_sha256"}
+    require(type(profile) is dict and set(profile) == profile_fields and type(profile["version"]) is int
+            and profile["version"] == 6 and profile["deployment_id"] == ident and profile["provider"] == "recorded-fixture"
+            and profile["model"] == "chronos-recorded-fixture-v1" and profile["local_port"] is None
+            and profile["reasoning_effort"] == "none" and profile["response_contract"] == CONTRACTS["c2-v2"]
+            and type(profile["request_limit"]) is int and 1 <= profile["request_limit"] <= 1000,
+            "RECORDED_CONVERSATION_PROFILE_REQUIRED")
+    for key in ("schema_sha256", "replay_corpus_sha256", "replay_fixture_sha256"):
+        require(type(profile[key]) is str and re.fullmatch(r"[a-f0-9]{64}", profile[key]), "INVALID_RECORDED_PROFILE_HASH")
+    canonical = json.dumps(profile, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False).encode("ascii")
+    digest = sha256(canonical).hexdigest()
+    require(value["profile_sha256"] == value["binding_sha256"] == digest, "RECORDED_PROFILE_BINDING_CHANGED")
+    require(type(value["allowance"]) is dict and value["allowance"].get("profile_sha256") == digest,
+            "RECORDED_ALLOWANCE_BINDING_CHANGED")
+    expected = {"baseURL": "http://127.0.0.1:11514/v1/", "model": profile["model"], "profileSha256": digest,
+                "reasoningEffort": "none", "contract": CONTRACTS["c2-v2"], "executionMode": "RECORDED_FIXTURE",
+                "replayCorpusSha256": profile["replay_corpus_sha256"], "replayFixtureSha256": profile["replay_fixture_sha256"]}
+    require(value["native_configuration"] == expected, "RECORDED_NATIVE_CONFIGURATION_CHANGED")
+    return value
+
+
+def provider_profile(ident, *, run=subprocess.run):
+    require(type(ident) is str and re.fullmatch(r"[a-f0-9]{32}", ident), "INVALID_DEPLOYMENT_ID")
+    root = CONVERSATION_RUNTIME
+    for parent in reversed((root, *root.parents)):
+        directory(parent)
+    names = {path.name for path in root.iterdir()}
+    require(names in ({"conversation-provider"}, {"fixture-conversation-provider"}),
+            "EXACTLY_ONE_OWNED_CONVERSATION_PROVIDER_REQUIRED")
+    directory(root / next(iter(names)))
+    if names == {"conversation-provider"}:
+        return sibling("conversation_provider").status(ident)
+    # Use a separate interpreter: replay imports must never reuse another
+    # installation's modules in a shared Embedded Python process.
+    helper = HERE / "replay_provider.py"
+    require(helper.resolve() == helper, "LINKED_CONVERSATION_HELPER")
+    try:
+        output = run(["/usr/bin/python3", "-B", str(helper), "status", "--deployment-id", ident,
+                      "--contract", "c2-v2", "--runtime", str(root)], capture_output=True, timeout=10, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        raise ValueError("RECORDED_PROVIDER_UNAVAILABLE") from None
+    require(output.returncode == 0 and type(output.stdout) in (bytes, str) and len(output.stdout) <= 16384
+            and type(output.stderr) in (bytes, str) and not output.stderr.strip(), "RECORDED_PROVIDER_UNAVAILABLE")
+    def pairs(items):
+        result = {}
+        for key, value in items:
+            require(key not in result, "DUPLICATE_RECORDED_STATUS_FIELD")
+            result[key] = value
+        return result
+    def invalid(_):
+        raise ValueError("INVALID_RECORDED_STATUS_JSON")
+    value = json.loads(output.stdout, object_pairs_hook=pairs, parse_constant=invalid)
+    return recorded_profile(value, ident)
 
 
 def flow(action, ident, origin, application, digest, profile, *, authorize_id=None,

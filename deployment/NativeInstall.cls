@@ -59,6 +59,228 @@ ClassMethod Add(rows As %DynamicArray, kind As %String, name As %String, class A
     Do rows.%Push({"kind":(kind),"name":(name),"status":(status)})
 }
 
+/// Hash exact UTF8 file bytes, not a native character-string conversion. The
+/// fixed path is already covered by native_install.py's verified RO bundle.
+ClassMethod WorkflowQuerySourceSHA256() As %String [ Language = python, Private ]
+{
+    from pathlib import Path
+    from hashlib import sha256
+    import stat
+    try:
+        path=Path('/opt/chronos/deployment/WorkflowAccountQuery.cls')
+        if any(p.is_symlink() for p in (path,*path.parents)):return ''
+        before=path.stat()
+        if not stat.S_ISREG(before.st_mode) or not 0<before.st_size<=1048576:return ''
+        raw=path.read_bytes();raw.decode('utf-8','strict')
+        after=path.stat()
+        def identity(info):return info.st_dev,info.st_ino,info.st_size,info.st_mtime_ns
+        if identity(before)!=identity(after) or len(raw)!=before.st_size:return ''
+        return sha256(raw).hexdigest()
+    except Exception:return ''
+}
+
+/// Pure classification only. A source digest or marker is not authorization.
+/// Partial, unknown and unowned states never permit a compile or blind retry.
+ClassMethod WorkflowQueryPolicy(sourceSHA As %String, present As %Boolean, markerData As %Integer, markerJSON As %String, metadataReady As %Boolean) As %String [ Language = python, Private ]
+{
+    import json,re
+    out=dict(status='QUERY_STATE_UNAVAILABLE',sourceSha256='',classPresent=bool(present),markerPresent=bool(markerData),metadataVerified=bool(metadataReady),reuse=False)
+    def emit(code):out['status']=code;return json.dumps(out,sort_keys=True,separators=(',',':'))
+    if type(sourceSHA)is not str or re.fullmatch(r'[a-f0-9]{64}',sourceSHA)is None:return emit('QUERY_SOURCE_UNAVAILABLE')
+    out['sourceSha256']=sourceSHA
+    if markerData==0:return emit('QUERY_CLASS_UNOWNED' if present else 'ABSENT_AND_SOURCE_VERIFIED')
+    if markerData!=1:return emit('QUERY_MARKER_INVALID')
+    try:
+        def pairs(items):
+            d={}
+            for k,v in items:
+                if k in d:raise ValueError('DUPLICATE_MARKER_FIELD')
+                d[k]=v
+            return d
+        marker=json.loads(markerJSON,object_pairs_hook=pairs)
+        fields={'schema','state','sourceSha256','deploymentId','manifestSha256'}
+        if type(marker)is not dict or set(marker)!=fields or any(type(v)is not str for v in marker.values()):return emit('QUERY_MARKER_INVALID')
+        if marker['schema']!='chronos.workflow-system-query.v1' or marker['state'] not in ('LOADING','READY','PARTIAL_PRESERVED_NO_RETRY'):return emit('QUERY_MARKER_INVALID')
+        if re.fullmatch(r'[a-f0-9]{32}',marker['deploymentId'])is None or any(re.fullmatch(r'[a-f0-9]{64}',marker[k])is None for k in ('sourceSha256','manifestSha256')):return emit('QUERY_MARKER_INVALID')
+        if marker['state']!='READY':return emit('QUERY_PARTIAL_NO_RETRY')
+        if marker['sourceSha256']!=sourceSHA:return emit('QUERY_SOURCE_CHANGED')
+        if not present or not metadataReady:return emit('QUERY_METADATA_UNAVAILABLE')
+        out['reuse']=True
+        return emit('OWNED_READY_SOURCE_MATCHED')
+    except (ValueError,TypeError,UnicodeError,OverflowError,RecursionError):return emit('QUERY_MARKER_INVALID')
+}
+
+/// Read only fixed dictionary metadata. This is not attestation against manual
+/// alteration of compiled method bodies after installation.
+ClassMethod WorkflowQueryMetadata() As %Boolean [ Private ]
+{
+    Try {
+        Set name="%ZChronos.Workflow.AccountQuery"
+        If '##class(%Dictionary.CompiledClass).%ExistsId(name) Return 0
+        If '##class(%Dictionary.CompiledMethod).%ExistsId(name_"||ReadFlags") Return 0
+        If '##class(%Dictionary.CompiledQuery).%ExistsId(name_"||ReadOne") Return 0
+        Set parameter=##class(%Dictionary.CompiledParameter).%OpenId(name_"||RESOURCEREQUIRED",0,.sc)
+        If $$$ISERR(sc)||'$IsObject(parameter) Return 0
+        Return parameter.Default="%Admin_Secure"
+    } Catch ex { Return 0 }
+}
+
+/// Used by Inspect too: no OBJ.Load, class save, marker write or account read.
+ClassMethod WorkflowQueryStatus() As %DynamicObject [ Private ]
+{
+    Set sourceSHA=..WorkflowQuerySourceSHA256()
+    Set present=##class(%Dictionary.CompiledClass).%ExistsId("%ZChronos.Workflow.AccountQuery")
+    Set data=$Data(^ChronosInstall("workflowSystemQuery")),raw=$Get(^ChronosInstall("workflowSystemQuery"))
+    Set metadata=..WorkflowQueryMetadata()
+    Return ##class(%DynamicObject).%FromJSON(..WorkflowQueryPolicy(sourceSHA,present,data,raw,metadata))
+}
+
+/// Called only under Install's existing mutex, approval and console checks.
+/// One shared compile; a failed attempt remains fenced even before accounts or
+/// databases are created. Reuse checks the RO source hash and narrow metadata.
+ClassMethod InstallWorkflowQuery(id As %String, digest As %String, Output view As %DynamicObject) As %Status [ Private ]
+{
+    Set view=..WorkflowQueryStatus(),begun=0
+    If '..Context() Return $$$ERROR($$$GeneralError,"WORKFLOW_QUERY_CONSOLE_REQUIRED")
+    If view.status="OWNED_READY_SOURCE_MATCHED" Return $$$OK
+    If view.status'="ABSENT_AND_SOURCE_VERIFIED" Return $$$ERROR($$$GeneralError,"WORKFLOW_QUERY_PREFLIGHT_REJECTED")
+    Set sc=$$$OK
+    Try {
+        If $Data(^ChronosInstall("workflowSystemQuery"))||##class(%Dictionary.CompiledClass).%ExistsId("%ZChronos.Workflow.AccountQuery") Throw ##class(%Exception.General).%New("WORKFLOW_QUERY_COLLISION")
+        Set marker={"schema":"chronos.workflow-system-query.v1","state":"LOADING","sourceSha256":(view.sourceSha256),"deploymentId":(id),"manifestSha256":(digest)}
+        Set ^ChronosInstall("workflowSystemQuery")=marker.%ToJSON(),begun=1
+        If (..WorkflowQuerySourceSHA256()'=view.sourceSha256)||##class(%Dictionary.CompiledClass).%ExistsId("%ZChronos.Workflow.AccountQuery") Throw ##class(%Exception.General).%New("WORKFLOW_QUERY_CHANGED")
+        Set sc=$System.OBJ.Load("/opt/chronos/deployment/WorkflowAccountQuery.cls","ck") $$$ThrowOnError(sc)
+        If (..WorkflowQuerySourceSHA256()'=view.sourceSha256)||'..WorkflowQueryMetadata() Throw ##class(%Exception.General).%New("WORKFLOW_QUERY_READBACK_FAILED")
+        Set marker.state="READY",^ChronosInstall("workflowSystemQuery")=marker.%ToJSON()
+        Set view=..WorkflowQueryStatus()
+        If view.status'="OWNED_READY_SOURCE_MATCHED" Throw ##class(%Exception.General).%New("WORKFLOW_QUERY_MARKER_READBACK_FAILED")
+    } Catch ex {
+        If begun Set marker.state="PARTIAL_PRESERVED_NO_RETRY",^ChronosInstall("workflowSystemQuery")=marker.%ToJSON()
+        Set sc=$$$ERROR($$$GeneralError,"WORKFLOW_QUERY_INSTALLATION_FAILED")
+    }
+    Return sc
+}
+
+/// Fresh-install-only helpers. Inspection never compiles or reuses these classes.
+ClassMethod WorkflowDeliveryAbsent() As %Boolean [ Private ]
+{
+    For name="Chronos.Deployment.NativeWorkflowInspect","Chronos.Deployment.NativeWorkflowApply" {
+        If ##class(%Dictionary.ClassDefinition).%ExistsId(name)||##class(%Dictionary.CompiledClass).%ExistsId(name) Return 0
+    }
+    Return 1
+}
+
+ClassMethod WorkflowDeliverySources() As %String [ Language = python, Private ]
+{
+    from pathlib import Path
+    from hashlib import sha256
+    import json,stat
+    try:
+        out={}
+        for name in ('NativeWorkflowInspect','NativeWorkflowApply'):
+            path=Path('/opt/chronos/deployment')/(name+'.cls')
+            if any(p.is_symlink() for p in (path,*path.parents)):return ''
+            before=path.stat()
+            if not stat.S_ISREG(before.st_mode) or not 0<before.st_size<=1048576:return ''
+            raw=path.read_bytes();raw.decode('utf-8','strict');after=path.stat()
+            identity=lambda v:(v.st_dev,v.st_ino,v.st_size,v.st_mtime_ns)
+            if identity(before)!=identity(after) or len(raw)!=before.st_size:return ''
+            out['Chronos.Deployment.'+name]=sha256(raw).hexdigest()
+        return json.dumps(out,sort_keys=True,separators=(',',':'))
+    except Exception:return ''
+}
+
+/// Build154 metadata probe verified ClassDefinition.TimeChanged is RawString.
+/// Compare exact strings; do not round, parse as a float or accept recompiled code.
+ClassMethod WorkflowDeliveryTime(name As %String) As %String [ Private ]
+{
+    If '$ListFind($ListBuild("Chronos.Deployment.NativeWorkflowInspect","Chronos.Deployment.NativeWorkflowApply"),name) Return ""
+    If '##class(%Dictionary.CompiledClass).%ExistsId(name) Return ""
+    Set definition=##class(%Dictionary.ClassDefinition).%OpenId(name,0,.sc)
+    If $$$ISERR(sc)||'$IsObject(definition) Return ""
+    Return definition.TimeChanged
+}
+
+ClassMethod InstallWorkflowDelivery(id As %String, digest As %String) As %Status [ Private ]
+{
+    Set begun=0
+    Try {
+        If '..WorkflowDeliveryAbsent()||$Data(^ChronosInstall(id,"workflowDelivery")) Throw ##class(%Exception.General).%New("WORKFLOW_DELIVERY_COLLISION")
+        Set raw=..WorkflowDeliverySources()
+        If raw="" Throw ##class(%Exception.General).%New("WORKFLOW_DELIVERY_SOURCE_UNAVAILABLE")
+        Set sources=##class(%DynamicObject).%FromJSON(raw)
+        Set marker={"schema":"chronos.workflow-delivery.v1","state":"INSTALLING","deploymentId":(id),"baseBundleManifestSha256":(digest),"classes":{}}
+        Set ^ChronosInstall(id,"workflowDelivery")=marker.%ToJSON(),begun=1
+        For name="NativeWorkflowInspect","NativeWorkflowApply" {
+            Set klass="Chronos.Deployment."_name
+            If ##class(%Dictionary.ClassDefinition).%ExistsId(klass)||##class(%Dictionary.CompiledClass).%ExistsId(klass) Throw ##class(%Exception.General).%New("WORKFLOW_DELIVERY_CLASS_CHANGED")
+            If ..WorkflowDeliverySources()'=raw Throw ##class(%Exception.General).%New("WORKFLOW_DELIVERY_SOURCE_CHANGED")
+            Set sc=$System.OBJ.Load("/opt/chronos/deployment/"_name_".cls","ck") $$$ThrowOnError(sc)
+            Set stamp=..WorkflowDeliveryTime(klass)
+            If stamp="" Throw ##class(%Exception.General).%New("WORKFLOW_DELIVERY_METADATA_UNAVAILABLE")
+            Do marker.classes.%Set(klass,{"sourceSha256":(sources.%Get(klass)),"timeChanged":(stamp)})
+            Set ^ChronosInstall(id,"workflowDelivery")=marker.%ToJSON()
+        }
+        If ..WorkflowDeliverySources()'=raw Throw ##class(%Exception.General).%New("WORKFLOW_DELIVERY_SOURCE_CHANGED")
+        Set marker.state="OWNED_READY",^ChronosInstall(id,"workflowDelivery")=marker.%ToJSON()
+        Return $$$OK
+    } Catch ex {
+        If begun {
+            Set marker.state="PARTIAL_PRESERVED_NO_RETRY",^ChronosInstall(id,"workflowDelivery")=marker.%ToJSON()
+        }
+        Return $$$ERROR($$$GeneralError,"WORKFLOW_DELIVERY_PROVISIONING_FAILED")
+    }
+}
+
+/// Pure marker policy: exact metadata strings, fixed two-class closure, no reuse.
+ClassMethod WorkflowDeliveryPolicy(id As %String, bundle As %String, markerJSON As %String, sourcesJSON As %String, metadataJSON As %String) As %Boolean [ Language = python, Private ]
+{
+    import json,re
+    try:
+        def pairs(items):
+            out={}
+            for k,v in items:
+                if k in out:raise ValueError('DUPLICATE')
+                out[k]=v
+            return out
+        def bad(_):raise ValueError('NONFINITE')
+        def parse(raw):return json.loads(raw,object_pairs_hook=pairs,parse_constant=bad)
+        if type(id)is not str or not re.fullmatch(r'[a-f0-9]{32}',id):return False
+        if type(bundle)is not str or not re.fullmatch(r'[a-f0-9]{64}',bundle):return False
+        marker=parse(markerJSON);sources=parse(sourcesJSON);metadata=parse(metadataJSON)
+        names={'Chronos.Deployment.NativeWorkflowInspect','Chronos.Deployment.NativeWorkflowApply'}
+        if type(marker)is not dict or set(marker)!={'schema','state','deploymentId','baseBundleManifestSha256','classes'}:return False
+        if (marker['schema'],marker['state'],marker['deploymentId'],marker['baseBundleManifestSha256'])!=('chronos.workflow-delivery.v1','OWNED_READY',id,bundle):return False
+        if any(type(v)is not dict or set(v)!=names for v in (marker['classes'],sources,metadata)):return False
+        for name in names:
+            row=marker['classes'][name]
+            if type(row)is not dict or set(row)!={'sourceSha256','timeChanged'}:return False
+            if type(sources[name])is not str or not re.fullmatch(r'[a-f0-9]{64}',sources[name]) or row['sourceSha256']!=sources[name]:return False
+            if type(row['timeChanged'])is not str or type(metadata[name])is not str or not 0<len(metadata[name])<=128 or row['timeChanged']!=metadata[name]:return False
+        return True
+    except (ValueError,TypeError,KeyError,UnicodeError,OverflowError,RecursionError):return False
+}
+
+/// Console-only readback; no compilation, repair, account or production mutation.
+ClassMethod WorkflowDeliveryStatus(id As %String) As %DynamicObject
+{
+    Set result={"status":"WORKFLOW_DELIVERY_UNAVAILABLE","ready":false,"verified":false,"modelCalls":0}
+    If '..Context()||'..Match("\A[a-f0-9]{32}\z",id) Return result
+    Try {
+        If $Get(^ChronosInstall(id,"state"))'="NATIVE_INSTALLED_DISABLED" Return result
+        Set raw=$Get(^ChronosInstall(id,"workflowDelivery"))
+        If raw="" Return result
+        Set sources=..WorkflowDeliverySources(),metadata={}
+        If sources="" Return result
+        For name="Chronos.Deployment.NativeWorkflowInspect","Chronos.Deployment.NativeWorkflowApply" {
+            Do metadata.%Set(name,..WorkflowDeliveryTime(name),"string")
+        }
+        If '..WorkflowDeliveryPolicy(id,$Get(^ChronosInstall(id,"bundle")),raw,sources,metadata.%ToJSON()) Return result
+        Return {"status":"OWNED_WORKFLOW_DELIVERY_READY","ready":false,"verified":true,"deploymentId":(id),"modelCalls":0}
+    } Catch ex { Return result }
+}
+
 ClassMethod Inspect(id As %String, origin As %String, application As %String) As %String
 {
     Set result={"status":"PREFLIGHT_REJECTED","applied":false,"ready":false,"rows":[]}
@@ -86,7 +308,10 @@ ClassMethod Inspect(id As %String, origin As %String, application As %String) As
         For name=s.defaultApplication,s.webPath { Do ..Add(rows,"application",name,"Security.Applications","869") }
         For path=s.root,s.destinations { Do rows.%Push({"kind":"directory","name":(path),"status":($Select(##class(%File).Exists(path):"CONFLICT",1:"ABSENT"))}) }
         For i=0:1:2 { Set path=s.databases.%Get(i).directory Do rows.%Push({"kind":"directory","name":(path),"status":($Select(##class(%File).Exists(path):"CONFLICT",1:"ABSENT"))}) }
-        Set bad=0
+        Set result.workflowSystemQuery=..WorkflowQueryStatus(),bad=0
+        Set result.workflowDeliveryClassesAbsent=..WorkflowDeliveryAbsent()
+        If 'result.workflowDeliveryClassesAbsent Set bad=bad+1
+        If '$ListFind($ListBuild("ABSENT_AND_SOURCE_VERIFIED","OWNED_READY_SOURCE_MATCHED"),result.workflowSystemQuery.status) Set bad=bad+1
         For i=0:1:(rows.%Size()-1) { If '$ListFind($ListBuild("ABSENT","PRESENT"),rows.%Get(i).status) Set bad=bad+1 }
         If $Data(^ChronosInstall(id)) Set bad=bad+1
         Set result.conflicts=bad,result.intentExists=+$Data(^ChronosInstall(id))
@@ -229,6 +454,11 @@ ClassMethod Install(id As %String, origin As %String, application As %String, di
         If check.status'="NAMES_CLEAR_NOT_AUTHORIZATION" Throw ##class(%Exception.General).%New("PREFLIGHT_CHANGED")
         Set s=check.spec,begun=1
         Set ^ChronosInstall(id,"state")="INSTALLING",^ChronosInstall(id,"spec")=s.%ToJSON(),^ChronosInstall(id,"bundle")=digest
+        Set ^ChronosInstall(id,"phase")="WORKFLOW_SYSTEM_QUERY"
+        Set sc=..InstallWorkflowQuery(id,digest,.query) $$$ThrowOnError(sc)
+        Set result.workflowSystemQuery=query
+        Set ^ChronosInstall(id,"phase")="WORKFLOW_DELIVERY"
+        Set sc=..InstallWorkflowDelivery(id,digest) $$$ThrowOnError(sc)
         Set ^ChronosInstall(id,"phase")="RESOURCES"
         For name=s.resource,s.tempResource,s.secondaryResource,s.access,"Chronos_Read","Chronos_Approve" {
             Set status=..Lookup("Security.Resources",name,"892")
@@ -286,7 +516,10 @@ ClassMethod Install(id As %String, origin As %String, application As %String, di
         Set ^ChronosInstall(id,"createdApplication")=1
         Set ^ChronosInstall(id,"phase")="FINAL_READBACK"
         Set sc=..VerifyDisabled(s) $$$ThrowOnError(sc)
-        Set ^ChronosInstall(id,"state")="NATIVE_INSTALLED_DISABLED",result.status="NATIVE_INSTALLED_DISABLED",result.spec=s
+        Set ^ChronosInstall(id,"state")="NATIVE_INSTALLED_DISABLED"
+        Set result.workflowDelivery=..WorkflowDeliveryStatus(id)
+        If 'result.workflowDelivery.verified Throw ##class(%Exception.General).%New("WORKFLOW_DELIVERY_READBACK_FAILED")
+        Set result.status="NATIVE_INSTALLED_DISABLED",result.spec=s
     } Catch ex {
         Set password=""
         If begun Set ^ChronosInstall(id,"state")="PARTIAL_INSTALL_PRESERVED"

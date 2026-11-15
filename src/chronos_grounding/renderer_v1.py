@@ -99,7 +99,16 @@ def build(decision_json, decision_id, scope, *, projector, receipt_validator,
     else:
         selection='The recorded proposal selected option '+option+'. Its recorded preference is '+pref+'.'
     attribution=detail['attribution']
-    if attribution['selectionOrigin']=='DETERMINISTIC_CODE' and option is not None:
+    # This origin did not exist in the legacy accepted input domain. Preserve
+    # every existing origin's wording; do not mislabel a new replay HOLD as an
+    # older record with missing attribution.
+    if attribution['interpretationOrigin']=='RECORDED_MODEL':
+        selection+=' The preference interpretation reuses a recorded model response; no fresh inference is performed.'
+        if attribution['selectionOrigin']=='DETERMINISTIC_CODE' and option is not None:
+            selection+=' Deterministic code ranked the options eligible in the recorded selection snapshot.'
+        else:
+            selection+=' No option was selected.'
+    elif attribution['selectionOrigin']=='DETERMINISTIC_CODE' and option is not None:
         selection+=' The model interpreted the preference; deterministic code ranked the eligible options.'
     elif attribution['interpretationOrigin']=='MODEL':
         selection+=' The interpretation came from the model; no option was selected.'

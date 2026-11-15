@@ -37,7 +37,7 @@ ClassMethod Module(root As %String, namespace As %String, agent As %String, simu
     for binding in (agentbinding,simbinding):
         if not isinstance(binding[-1],str) or not re.fullmatch(r'[0-9a-f]{64}',binding[-1]):raise ValueError('REVIEW_MANIFEST_REQUIRED')
     for prefix,children,directory in (
-        (agentroot,('__init__','engine','proposal','timeview','extraction','contract'),'chronos_agent'),
+        (agentroot,('__init__','engine','proposal','timeview','extraction','clarification','contract'),'chronos_agent'),
         (simroot,('__init__','model','clock','workflow','store','registry','realtime'),'chronos_simulation')):
         required={prefix if child=='__init__' else prefix+'.'+child for child in children}
         if {name for name in sys.modules if name==prefix or name.startswith(prefix+'.')}!=required:raise ValueError('REVIEW_DEPENDENCY_GRAPH_CHANGED')

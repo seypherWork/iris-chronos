@@ -12,6 +12,7 @@ from .engine import S, M, authority_snapshot, require_native, canonical, fingerp
 from .proposal import Invalid, OPTIONS, check, parse, sensitive
 from .timeview import model_input
 from .extraction import BoundContext, assemble, Invalid as ExtractionInvalid, SCHEMA_VERSION as EXTRACTION_CONTRACT
+from . import clarification
 
 MODES={'WITH_TRIALS','WITHOUT_TRIALS_ABLATION'}
 PROPOSAL_CONTRACT='chronos.agent-proposal.v2'
@@ -183,7 +184,79 @@ def review_authority_stamp(a):
     return fingerprint({'effect':effect,'operation':a['operation']})
 
 
-def prepare(observation,authority,context_id,*,now_us,gate_state,mode='WITH_TRIALS',response_contract=PROPOSAL_CONTRACT):
+def _clarification_authority_stamp(authority):
+    """Human-source material correlation, never a shipment approval.
+
+    The existing review projection excludes exactly the renewed effect
+    snapshot nonce and its observedAt. Every other effect/operation field stays
+    bound. Actual preview and confirmation snapshot IDs are separate controls.
+    """
+    return review_authority_stamp(authority)
+
+
+def _clarified_facts(source,observation,authority,facts,now_us):
+    """Project separately supplied trusted-native human data over RAW facts.
+
+    Only native composition can authenticate/reload the source and derive its
+    current expected_binding. A JSON object, matching hash or this pure helper
+    does not establish that a user or task exists. Never modify observation,
+    provider facts_id/observation_id, or provider-owned provenance to add a note.
+    """
+    exact(source,'record expected_binding native_completion')
+    source=parse(canonical(source))
+    record,binding,completion=(source[k] for k in ('record','expected_binding','native_completion'))
+    try:
+        # Validate all source types, exact shapes, native completion correlation,
+        # actor/form/time consistency and exclusive expiry before using fields.
+        message=clarification.project_message(record,binding,completion,now_us=now_us)
+        world=observation['definition']
+        if ((binding['order_id'],binding['shipment_version'],binding['utc_origin_us'])!=
+                (world['order_id'],world['shipment_version'],world['utc_origin_us'])):
+            raise Invalid('CLARIFICATION_PROVIDER_IDENTITY_MISMATCH')
+        if world['utc_origin_us']+observation['clock']<record['resolved_us']:
+            raise Invalid('CLARIFICATION_FRESH_PROVIDER_READ_REQUIRED')
+        if (binding['facts_id']!=observation['facts_id'] or
+                binding['facts_digest']!=fingerprint(facts)):
+            raise Invalid('CLARIFICATION_PROVIDER_FACTS_CHANGED')
+        if binding['authority_digest']!=_clarification_authority_stamp(authority):
+            raise Invalid('CLARIFICATION_AUTHORITY_CHANGED')
+        if facts['preference_mode']!='CONTEXT_REQUIRED':
+            raise Invalid('CLARIFICATION_POLICY_NOT_ELIGIBLE')
+        business_end=world['utc_origin_us']+min(facts['deadline'],facts['inventory_expires'],facts['offer_until'])
+        if binding['valid_until_us']!=business_end:
+            raise Invalid('CLARIFICATION_BUSINESS_EXPIRY_CHANGED')
+        if record['expires_us']>record['created_us']+600*S:
+            raise Invalid('CLARIFICATION_HUMAN_WINDOW_EXCEEDED')
+        projected=deepcopy(facts)
+        projected['messages']=clarification.append_message(facts['messages'],record,binding,completion,now_us=now_us)
+        reference={'schema_version':'chronos.clarification-reference.v1',
+            'binding':deepcopy(binding),'binding_sha256':record['binding_sha256'],
+            'record_sha256':fingerprint(record),'native_completion_sha256':fingerprint(completion),
+            'authority_material_sha256':_clarification_authority_stamp(authority),
+            'expires_us':record['expires_us'],'message_sha256':fingerprint(message)}
+        return projected,reference
+    except clarification.Invalid as exc:
+        # The projector emits bounded diagnostic constants only. Do not echo
+        # arbitrary subclass exceptions or native/user-supplied note text.
+        if type(exc) is clarification.Invalid:raise Invalid(str(exc)) from None
+        raise Invalid('INVALID_CLARIFICATION_SOURCE') from None
+
+
+def _clarification_required(record,source):
+    """Never reuse an archived source as if it were a fresh native read."""
+    present='clarification_binding' in record
+    if present and source is None:raise Invalid('CLARIFICATION_SOURCE_REQUIRED')
+    if not present and source is not None:raise Invalid('UNEXPECTED_CLARIFICATION_SOURCE')
+    return present
+
+
+def _same_clarification(record,fresh):
+    old=record.get('clarification_binding');new=fresh.get('clarification_binding')
+    if (old is None)!=(new is None) or (old is not None and canonical(old)!=canonical(new)):
+        raise Invalid('CLARIFICATION_SOURCE_CHANGED')
+
+
+def prepare(observation,authority,context_id,*,now_us,gate_state,mode='WITH_TRIALS',response_contract=PROPOSAL_CONTRACT,clarification_source=None):
     try:
         identifier(context_id)
         if type(response_contract) is not str or response_contract not in RESPONSE_CONTRACTS:raise Invalid('INVALID_RESPONSE_CONTRACT')
@@ -193,6 +266,9 @@ def prepare(observation,authority,context_id,*,now_us,gate_state,mode='WITH_TRIA
         disposition=authority_check(o,a)
         if disposition:return disposition
         facts=public_facts(o)
+        human=None
+        if clarification_source is not None:
+            facts,human=_clarified_facts(clarification_source,o,a,facts,now_us)
         if sensitive(facts):return result('ERROR','SENSITIVE_INPUT')
         trials,allowed=outcomes(o,facts,mode)
         if not allowed:return result('DETERMINISTIC','NO_FEASIBLE_OPTION')
@@ -212,6 +288,7 @@ def prepare(observation,authority,context_id,*,now_us,gate_state,mode='WITH_TRIA
                 exposed.append({'trial_id':source,'option_id':OPTIONS[t['action']],'observations':t})
         if len({s['id'] for s in catalog})!=len(catalog):raise Invalid('SOURCE_ID_COLLISION')
         valid=min(o['clock']+30*S,facts['offer_until'],facts['inventory_expires'])
+        if human is not None:valid=min(valid,human['expires_us']-o['definition']['utc_origin_us'])
         wire={'schema_version':'chronos.agent-input.v2','context_id':context_id,'order_id':o['definition']['order_id'],
               'shipment_version':o['definition']['shipment_version'],'state_revision':o['facts_revision'],
               'policy_revision':a['effect']['snapshot']['policyRevision'],'observation_id':o['observation_id'],
@@ -230,6 +307,9 @@ def prepare(observation,authority,context_id,*,now_us,gate_state,mode='WITH_TRIA
                 'review_authority_stamp':review_authority_stamp(a),'authority_snapshot_id':a['effect']['snapshotId'],
                 'facts_digest':fingerprint(facts),
                 'available':[{k:r[k] for k in ('action','cost','accepted_at','arrival')} for r in allowed]}
+        if human is not None:
+            record['clarification_binding']=human
+            record['review_deadline_us']=min(record['review_deadline_us'],human['expires_us'])
         if response_contract==EXTRACTION_CONTRACT:
             record['response_contract']=response_contract
             record['extraction_binding']=BoundContext.create(wire,record['available']).binding_sha256
@@ -385,16 +465,18 @@ def explanation_receipt(record, fresh, proposal, now_us):
     return validate_explanation(receipt,record,proposal)
 
 
-def finish(record,response_text,observation,authority,*,now_us,gate_state,provider_status='ok'):
+def finish(record,response_text,observation,authority,*,now_us,gate_state,provider_status='ok',clarification_source=None):
     """Pure validator only; caller MUST atomically consume its native record once."""
     try:
         record=parse(canonical(record));wire=record['wire'];integer(now_us,'utc_now');response_contract=response_contract_of(record)
         if now_us<record['started_us']:return result('ERROR','INVALID_CLOCK')
         if now_us>=record['deadline_us'] or provider_status=='timeout':return result('ERROR','MODEL_TIMEOUT')
         if provider_status!='ok':return result('ERROR','MODEL_REFUSAL' if provider_status=='refusal' else 'MODEL_ERROR')
-        fresh=prepare(observation,authority,wire['context_id'],now_us=now_us,gate_state=gate_state,mode=wire['trial_mode'],response_contract=response_contract)
+        _clarification_required(record,clarification_source)
+        fresh=prepare(observation,authority,wire['context_id'],now_us=now_us,gate_state=gate_state,mode=wire['trial_mode'],response_contract=response_contract,clarification_source=clarification_source)
         if fresh['status']!='READY':return result('RECHECK_REQUIRED',fresh['code'])
         f=fresh['record'];current=f['wire']
+        _same_clarification(record,f)
         if current['utc_origin_us']+current['observed_at']<record['started_us']:return result('RECHECK_REQUIRED','FRESH_READ_REQUIRED')
         if current['observed_at']<wire['observed_at']:return result('ERROR','INVALID_CLOCK')
         if now_us>=wire['utc_origin_us']+wire['valid_until']:return result('ERROR','CONTEXT_EXPIRED')
@@ -423,7 +505,7 @@ def finish(record,response_text,observation,authority,*,now_us,gate_state,provid
         return result('ERROR',code)
 
 
-def review(decision,observation,authority,*,now_us,gate_state,generation):
+def review(decision,observation,authority,*,now_us,gate_state,generation,clarification_source=None):
     """Recheck a trusted, immutable COMPLETED ledger entry for human preview.
 
     This does not finish inference, renew its deadline, authenticate a person or
@@ -462,9 +544,14 @@ def review(decision,observation,authority,*,now_us,gate_state,generation):
         if now_us>=record['review_deadline_us']:return result('RECHECK_REQUIRED','REVIEW_EXPIRED')
         if wire['context_digest']!=fingerprint({k:v for k,v in wire.items() if k!='context_digest'}):
             raise Invalid('CONTEXT_CHANGED')
-        fresh=prepare(observation,authority,wire['context_id'],now_us=now_us,gate_state=gate_state,mode=d['mode'],response_contract=response_contract)
+        _clarification_required(record,clarification_source)
+        fresh=prepare(observation,authority,wire['context_id'],now_us=now_us,gate_state=gate_state,mode=d['mode'],response_contract=response_contract,clarification_source=clarification_source)
         if fresh['status']!='READY':return result('RECHECK_REQUIRED',fresh['code'])
         f=fresh['record'];current=f['wire']
+        _same_clarification(record,f)
+        if ('clarification_binding' in record and
+                record['clarification_binding']['binding']['generation']!=generation):
+            return result('RECHECK_REQUIRED','CLARIFICATION_GENERATION_CHANGED')
         if current['utc_origin_us']+current['observed_at']<d['completedUS']:
             return result('RECHECK_REQUIRED','FRESH_READ_REQUIRED')
         if (current['facts_id']!=wire['facts_id'] or f['facts_digest']!=record['facts_digest'] or
@@ -481,8 +568,10 @@ def review(decision,observation,authority,*,now_us,gate_state,generation):
                 raise Invalid('INVALID_EXPLANATION_TIME')
         # Hash public, immutable semantics, not claims, credentials or the
         # moving observation clock. Re-reading cannot silently change consent.
-        digest=fingerprint({'requestId':d['requestId'],'generation':generation,'completedUS':d['completedUS'],
-                            'context_digest':wire['context_digest'],'result':r,'reviewDeadlineUS':record['review_deadline_us']})
+        material={'requestId':d['requestId'],'generation':generation,'completedUS':d['completedUS'],
+                  'context_digest':wire['context_digest'],'result':r,'reviewDeadlineUS':record['review_deadline_us']}
+        if 'clarification_binding' in record:material['clarification_binding']=record['clarification_binding']
+        digest=fingerprint(material)
         return result('REVIEWABLE','HUMAN_PREVIEW_REQUIRED',proposal=proposal,
                       binding={'decisionId':d['requestId'],'decisionDigest':digest,'orderId':d['orderId'],
                                'shipmentVersion':d['shipmentVersion'],'expectedSnapshotId':f['authority_snapshot_id'],

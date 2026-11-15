@@ -46,6 +46,8 @@ ClassMethod Run(action As %String, id As %String, origin As %String, application
             If profile.%Get("local_port")'=11434 Throw ##class(%Exception.General).%New("LOCAL_PORT_CHANGED")
         } ElseIf profile.provider="openai-chat-json" {
             If (profile.%GetTypeOf("local_port")'="null")||(profile.%Get("reasoning_effort")'="none") Throw ##class(%Exception.General).%New("CLOUD_PROFILE_CHANGED")
+        } ElseIf profile.provider="recorded-fixture" {
+            If (profile.%GetTypeOf("local_port")'="null")||(profile.%Get("reasoning_effort")'="none") Throw ##class(%Exception.General).%New("REPLAY_PROFILE_CHANGED")
         } Else { Throw ##class(%Exception.General).%New("UNSUPPORTED_PROVIDER") }
         If observed.%Get("provider_kind")'=profile.provider Throw ##class(%Exception.General).%New("PROVIDER_KIND_CHANGED")
         Set binding=observed.%Get("binding_sha256")
@@ -56,12 +58,23 @@ ClassMethod Run(action As %String, id As %String, origin As %String, application
         Set effort=profile.%Get("reasoning_effort")
         If effort'="none" Set expected.reasoningEffort=effort
         Set expected.profileSha256=profileHash
+        Set executionMode="LIVE_MODEL",corpusHash="",fixtureHash=""
+        If profile.provider="recorded-fixture" {
+            Set executionMode="RECORDED_FIXTURE",corpusHash=profile.%Get("replay_corpus_sha256"),fixtureHash=profile.%Get("replay_fixture_sha256")
+            Set expected.executionMode=executionMode,expected.replayCorpusSha256=corpusHash,expected.replayFixtureSha256=fixtureHash
+        }
         If action'="status" {
             If $System.Util.GetEnviron("CHRONOS_PROVIDER_AUTHORIZED")'=(action_":"_id_":"_digest_":"_profileHash_":"_expectedBinding) Throw ##class(%Exception.General).%New("EXPLICIT_ACTION_AUTHORIZATION_REQUIRED")
             Kill webProperties Set sc=##class(Security.Applications).Get(s.webPath,.webProperties) $$$ThrowOnError(sc)
             If $Get(webProperties("Enabled"),1) Throw ##class(%Exception.General).%New("INITIAL_INSTALL_REQUIRES_DISABLED_WEB")
         }
         Set $Namespace=s.namespace
+        Set sc=##class(Chronos.Agent.Model).CheckExecution(executionMode,profile.model,profileHash,effort,corpusHash,fixtureHash) $$$ThrowOnError(sc)
+        If $Data(^ChronosConversation("model")) {
+            Set sc=##class(Chronos.Conversation.Model).Current(.chatConfig) $$$ThrowOnError(sc)
+            If chatConfig.%Get("executionMode","LIVE_MODEL")'=executionMode Throw ##class(%Exception.General).%New("PROVIDER_MODE_MISMATCH")
+            If executionMode="RECORDED_FIXTURE",(chatConfig.%Get("replayCorpusSha256")'=corpusHash)||(chatConfig.%Get("replayFixtureSha256")'=fixtureHash) Throw ##class(%Exception.General).%New("REPLAY_CORPUS_MISMATCH")
+        }
         Set runtime=##class(%DynamicObject).%FromJSON($Get(^ChronosRuntime("config")))
         If (runtime.production'="Chronos.App.Production")||(runtime.dataRoot'=s.destinations)||(runtime.pythonRoot'="/opt/chronos/src") Throw ##class(%Exception.General).%New("RUNTIME_BINDING_CHANGED")
         Set web=##class(%DynamicObject).%FromJSON($Get(^ChronosWeb("config")))
@@ -84,7 +97,7 @@ ClassMethod Run(action As %String, id As %String, origin As %String, application
             Set sc=##class(Chronos.Runtime.Durability).Check() $$$ThrowOnError(sc)
             Set ^ChronosJury("provider")=item.%ToJSON()
             Set sc=##class(Chronos.Runtime.Durability).Flush() $$$ThrowOnError(sc)
-            Set sc=##class(Chronos.Agent.Model).Configure(expected.baseURL,expected.model,profileHash,effort,expected.contract) $$$ThrowOnError(sc)
+            Set sc=##class(Chronos.Agent.Model).Configure(expected.baseURL,expected.model,profileHash,effort,expected.contract,executionMode,corpusHash,fixtureHash) $$$ThrowOnError(sc)
             If $Get(^ChronosAI18("config"))'=expected.%ToJSON() Throw ##class(%Exception.General).%New("MODEL_READBACK_MISMATCH")
             Set item.state="CONFIGURED",^ChronosJury("provider")=item.%ToJSON()
             Set sc=##class(Chronos.Runtime.Durability).Flush() $$$ThrowOnError(sc)

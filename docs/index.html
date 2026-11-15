@@ -3,7 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; media-src 'self'; base-uri 'none'; form-action 'none'">
-<title>IRIS Chronos · Jury walkthrough</title>
+<title>IRIS Chronos 1.1 · Jury walkthrough</title>
 <style>
   :root {color-scheme:dark;--ink:#fff4e5;--muted:#d8c2aa;--accent:#ffbf6c;--line:#6c4b32;--panel:#211914}
   * {box-sizing:border-box}
@@ -24,6 +24,7 @@
   section {padding:clamp(1rem,3vw,1.5rem);margin:1rem 0;background:var(--panel);border:1px solid var(--line);border-radius:1rem;scroll-margin-top:1rem}
   .walkthrough {display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:1rem}
   .walkthrough section {margin:0}
+  img.native-ui {display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:.65rem}
   video {display:block;width:100%;aspect-ratio:16/9;background:#100b08;border:1px solid var(--line);border-radius:.65rem;margin:.85rem 0}
   details {padding:.75rem 0;border-top:1px solid var(--line)}
   summary {cursor:pointer;font-weight:700;color:var(--accent)}
@@ -44,8 +45,8 @@
   </header>
   <div class="walkthrough">
     <section id="watch" aria-labelledby="watch-title">
-      <h2 id="watch-title">See the recovery</h2>
-      <p>English captions and screenshots from the 407r2 run on IRIS 154. The synthetic destination accepts B before the browser loses the reply.</p>
+      <h2 id="watch-title">Earlier recovery walkthrough</h2>
+      <p>Historical recording: English captions and screenshots from the 407r2 run on IRIS 154; this video does not demonstrate all 1.1 features. The synthetic destination accepts B before the browser loses the reply.</p>
       <video controls playsinline preload="metadata" aria-label="62-second recorded Chronos recovery"><source src="chronos-proof.mp4" type="video/mp4"></video>
       <a href="chronos-proof.mp4" download>Download MP4</a>
     </section>
@@ -67,8 +68,14 @@
       </details>
     </section>
   </div>
+  <section id="current" aria-labelledby="current-title">
+    <h2 id="current-title">Current 1.1 interface on real IRIS</h2>
+    <p>Actual synthetic laboratory capture after native recovery: the same operation, attempt and receipt remain visible, next to the case-conversation panel. The strict portable observer required an additional cleanup/restart; see the versioned evidence.</p>
+    <img class="native-ui" src="native-receipt-1.1.png" alt="Original accepted operation after native recovery in IRIS Chronos 1.1">
+  </section>
   <section id="live" aria-labelledby="live-title">
-    <h2 id="live-title">Run the case on your IRIS instance</h2>
+    <h2 id="live-title">Review version 1.1 on your IRIS instance</h2>
+    <p>Version 1.1 adds native human clarification and a conversational case panel. <a href="https://github.com/seypherWork/iris-chronos#see-it-and-run-it">Choose the live or model-free review route</a>.</p>
     <p>Open the <a href="https://github.com/seypherWork/iris-chronos/blob/main/deployment/JURY-ROUTE.md#short-acceptance-checklist">jury acceptance checklist</a> in the English installation guide. Prepare IRIS AI Hub Community 2026.3.0AI.154.0 x64 and the pinned local Qwen model. Open <code>queue_inventory</code>, ask why B was selected, confirm once and reopen the receipt.</p>
     <p>This page presents recorded evidence from synthetic cases. Live requests run in the installed IRIS instance.</p>
   </section>

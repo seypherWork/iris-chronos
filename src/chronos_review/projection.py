@@ -218,10 +218,19 @@ def historical_attribution(record, decision):
     need(type(call) is dict)
     if contract == "chronos.preference-extraction.v1":
         need(call.get("responseContract") == contract)
-        need(call.get("interpretationOrigin") == "MODEL")
+        origin = call.get("interpretationOrigin")
+        if origin == "RECORDED_MODEL":
+            need(call.get("executionMode") == "RECORDED_FIXTURE")
+            need(call.get("model") == "chronos-recorded-fixture-v1")
+            digest(call.get("replayCorpusSha256"))
+            digest(call.get("replayFixtureSha256"))
+        else:
+            need(origin == "MODEL" and call.get("executionMode") in (None, "LIVE_MODEL"))
+            need(call.get("model") != "chronos-recorded-fixture-v1")
+            need(not {"replayCorpusSha256", "replayFixtureSha256"}.intersection(call))
         need(call.get("selectionOrigin") == "DETERMINISTIC_CODE")
         digest(call.get("profileSha256"))
-        return {"responseContract": contract, "interpretationOrigin": "MODEL",
+        return {"responseContract": contract, "interpretationOrigin": origin,
                 "selectionOrigin": "DETERMINISTIC_CODE"}
     need(not {"responseContract", "interpretationOrigin", "selectionOrigin"}.intersection(call))
     return {"responseContract": contract, "interpretationOrigin": "NOT_RECORDED",
@@ -281,9 +290,17 @@ def project(decision_json, expected_id, *, namespace=None):
             receipt=validate_explanation(r["explanation"],record,proposal)
             need(created<=receipt["finished_at_us"]<=completed)
         need((r["status"] == "VALIDATED_HOLD") == (proposal["action"] == "HOLD"))
-        decision_digest = fingerprint({"requestId": expected_id, "generation": d["generation"],
+        # Match the immutable semantics used by contract.review. A clarification
+        # is part of decision identity even though its private binding is never
+        # exposed by this historical projection. Legacy decisions retain exactly
+        # the same material and digest.
+        material = {"requestId": expected_id, "generation": d["generation"],
             "completedUS": completed, "context_digest": wire["context_digest"],
-            "result": r, "reviewDeadlineUS": review_end})
+            "result": r, "reviewDeadlineUS": review_end}
+        if "clarification_binding" in record:
+            need(type(record["clarification_binding"]) is dict)
+            material["clarification_binding"] = record["clarification_binding"]
+        decision_digest = fingerprint(material)
         result = {"code": "DECISION_DETAIL_RECORDED", "schema": "chronos.review-detail.v2",
             "attribution": attribution,
             "dispatchGranted": False, "canConfirm": False, "currentAuthorityVerified": False,

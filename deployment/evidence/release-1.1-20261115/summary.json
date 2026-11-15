@@ -1,0 +1,99 @@
+{
+  "schema": "chronos.release-evidence.v1",
+  "version": "1.1.0",
+  "engine": "2026.3.0AI.154.0",
+  "captured_date_utc": "2026-11-15",
+  "shipments": "SYNTHETIC_ONLY",
+  "workflow": {
+    "run": "Core09 R3",
+    "native_clarification_completed": true,
+    "new_decision": "FAILOVER_B",
+    "separate_confirmation": true,
+    "recovery_submissions": 1,
+    "accepted_effects": 1,
+    "access_and_services_closed": true,
+    "qualification": "Derived native patch on an existing isolated installation; separate from the final UI run."
+  },
+  "case_chat": {
+    "native_questions": 3,
+    "manual_semantic_review": "3 consistent answers",
+    "strict_topic_metric": "2/3",
+    "qualification": "The first answer compared A/B correctly but its topic label was DECISION, not COMPARISON."
+  },
+  "recorded": {
+    "run": "Recorded11 R3/R4",
+    "native_case": "earliest",
+    "exact_questions": 4,
+    "fresh_inference_calls": 0,
+    "one_recovery": true,
+    "desktop_mobile_readback": true,
+    "access_and_services_closed": true
+  },
+  "final_ui_chat": {
+    "run": "Final17",
+    "ui_question_observed": true,
+    "fresh_question": "Why was B recommended even though A costs less?",
+    "answer": "Only B was eligible in the original selection snapshot: cost 6 synthetic units, predicted arrival approximately 9.1 min. In final validation, A cost 3 but was rejected because inventory validity had expired at admission. Budget: 8; deadline: 20 min on the same case timeline. Recorded evidence, not dispatch or delivery. Original timing snapshot at approximately 0.1 min: A available at 0 min, base queue 7 min, travel 8 min; B available at 0 min, base queue 0 min, travel 9 min. Inventory expires at 6 min; delivery deadline 20 min; offer expires at 30 min. Separate final validation: A rejected at approximately 7.15 min, B admitted at approximately 0.15 min. Handoff here means simulated admission after availability and queue waiting, not a physical carrier transfer. Base queue durations do not include additional queue-change events. All times use the same case timeline; these historical snapshots do not prove a shipment.",
+    "topics": [
+      "COMPARISON"
+    ],
+    "source_ids": [
+      "decision",
+      "finish",
+      "timing"
+    ],
+    "record_requests": 1,
+    "confirmation_granted": false,
+    "dispatch_authorized": false,
+    "native_c2_quota_used": 1,
+    "native_e1_quota_used": 1,
+    "ai_hub_session_id": "2",
+    "ledger_correspondence": "Matched original UI question, answer, profile and citations on readonly review.",
+    "security_closure_verified": true
+  },
+  "ui_tests": {
+    "node_passed": 457,
+    "node_failed": 0,
+    "scope": "Source web test suite including keyboard contracts; synthetic clients."
+  },
+  "restart": {
+    "run": "Crash16",
+    "native_recovery_and_same_receipt_ui_observed": true,
+    "submit_calls": 1,
+    "attempts": 1,
+    "qualification": "EXTRA_CLEANUP_RESTART_BEFORE_RECOVERY",
+    "portable_cli_pass": false
+  },
+  "final_portable_challenge": {
+    "run": "Final17",
+    "cut_observed": true,
+    "strict_pass": false,
+    "qualification": "EXTRA_CLEANUP_RESTART_BEFORE_RECOVERY. After readonly proof that the original native request was ABSENT, it was executed once with that original ID; UI reopened the same receipt. No inference or shipment confirmation was repeated. Strict portable CLI pass remains false.",
+    "native_recovery_verified": true,
+    "same_operation_attempt_and_receipt_in_ui": true,
+    "recovery_effects": 1,
+    "submits": 1,
+    "attempts": 1,
+    "native_recovery_request_id": "23aeb2a09c0d47bbaea52323f95adb6b",
+    "security_closure_verified": true
+  },
+  "ipm": {
+    "status": "NATIVE_INSTALL_OBSERVED_AND_ROOT_REVIEWED",
+    "module_version": "1.1.0",
+    "expected_source_classes_compiled": 52,
+    "dictionary_entries": 56,
+    "additional_entries": [
+      "Chronos.App.ProcessMessagesReceived",
+      "Chronos.App.ProcessMessagesSent",
+      "Chronos.Workflow.ProcessMessagesReceived",
+      "Chronos.Workflow.ProcessMessagesSent"
+    ],
+    "production_present": true,
+    "same_native_sources_as_release": true,
+    "default_user_access_unchanged": true,
+    "engine_stopped_verified": true,
+    "qualification": "Official IPM 0.10.10 bootstrap once; local mapping to USER; module load Validate/Compile/Activate SUCCESS. The initial harness counted four SQL projection stubs as source classes and treated instance methods as class methods. Original failed checks were retained; native receipts were reviewed separately. This does not install the full Compose application."
+  },
+  "independent_machine_qualified": false,
+  "public_live_hosting": false
+}

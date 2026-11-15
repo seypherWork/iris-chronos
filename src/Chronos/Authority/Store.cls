@@ -33,6 +33,11 @@ ClassMethod Apply(pCommand As %String, pArgs As %DynamicObject, Output pResult A
         If 'readOnly,now<$Get(^ChronosAuthority14("clockHighWater"),0) {
             Set sc=$$$ERROR($$$GeneralError,"CLOCK_MOVED_BACKWARD")
         } Else {
+            // The optional clarified account sample may expire while waiting
+            // for this mutex. Validate inside T, without IPC or new locks.
+            If $ListFind($ListBuild("PREVIEW","CONFIRM_RESERVE","ADMIT"),pCommand) {
+                Set sc=..WorkflowCommit(pCommand,pArgs) $$$ThrowOnError(sc)
+            }
             Set sc=..Transition(pCommand,pArgs,now,.pResult)
         }
         If $$$ISERR(sc) {
@@ -44,6 +49,9 @@ ClassMethod Apply(pCommand As %String, pArgs As %DynamicObject, Output pResult A
                 Set sequence=$Increment(^ChronosAuthority14("auditSequence"))
                 Set audit={"command":(pCommand),"at":(now),"code":(pResult.%Get("code")),"operationId":(pResult.%Get("operationId"))}
                 Set ^ChronosAuthority14("audit",sequence)=audit.%ToJSON()
+            }
+            If $ListFind($ListBuild("PREVIEW","CONFIRM_RESERVE","ADMIT"),pCommand) {
+                Set sc=..WorkflowCommit(pCommand,pArgs) $$$ThrowOnError(sc)
             }
             TCommit
             If 'readOnly {
@@ -61,6 +69,38 @@ ClassMethod Apply(pCommand As %String, pArgs As %DynamicObject, Output pResult A
     }
     Lock -^ChronosAuthority14("mutex")
     Return sc
+}
+
+/// Optional native-only account window at the actual commit boundary. No CSP,
+/// Task, SQL, service, ledger, new lock or model is called from this transaction.
+/// Ordinary unclarified commands have no object and retain their old behavior.
+ClassMethod WorkflowCommit(command As %String, a As %DynamicObject) As %Status [ Private ]
+{
+    If '$Data(%ChronosWorkflowGate) Return $$$OK
+    If %ChronosWorkflowGate="" Return $$$OK
+    If '$IsObject(%ChronosWorkflowGate) Return $$$ERROR($$$GeneralError,"WORKFLOW_COMMIT_GATE_INVALID")
+    If %ChronosWorkflowGate.%ClassName(1)'="Chronos.Workflow.ContextGate" Return $$$ERROR($$$GeneralError,"WORKFLOW_COMMIT_GATE_INVALID")
+    Set decisionId=""
+    If command="PREVIEW" {
+        Set decisionId=a.%Get("decisionId")
+    } Else {
+        If command="CONFIRM_RESERVE" {
+            Set previewId=a.%Get("previewId")
+        } ElseIf command="ADMIT" {
+            Set operationId=a.%Get("operationId")
+            If ($Extract(operationId,1,11)'="preview-op-")||($Length(operationId)<=11) Return $$$ERROR($$$GeneralError,"WORKFLOW_COMMIT_BINDING_INVALID")
+            Set previewId=$Extract(operationId,12,*)
+        } Else { Return $$$ERROR($$$GeneralError,"WORKFLOW_COMMIT_COMMAND_INVALID") }
+        Set raw=$Get(^ChronosAuthority14("preview",previewId))
+        If raw="" Return $$$ERROR($$$GeneralError,"WORKFLOW_COMMIT_PREVIEW_UNAVAILABLE")
+        Set p=##class(%DynamicObject).%FromJSON(raw)
+        If (p.%Get("previewId")'=previewId) Return $$$ERROR($$$GeneralError,"WORKFLOW_COMMIT_BINDING_INVALID")
+        If command="ADMIT",p.%Get("operationId")'=operationId Return $$$ERROR($$$GeneralError,"WORKFLOW_COMMIT_BINDING_INVALID")
+        If command="ADMIT",p.%Get("state")'="CONFIRMED" Return $$$ERROR($$$GeneralError,"WORKFLOW_COMMIT_BINDING_INVALID")
+        Set decisionId=p.%Get("decisionId")
+    }
+    If '..ID(decisionId)||'%ChronosWorkflowGate.CommitWindow(decisionId) Return $$$ERROR($$$GeneralError,"WORKFLOW_COMMIT_WINDOW_EXPIRED")
+    Return $$$OK
 }
 
 ClassMethod ID(pValue As %String) As %Boolean [ Private ]

@@ -72,7 +72,7 @@ const detailFields = {code:choice("DECISION_DETAIL_RECORDED"),schema:choice("chr
   decisionId:id,decisionDigest:hash,generation:id,completedUS:num,reviewDeadlineUS:num,
   outcome:fields({status:choice("VALIDATED_PROPOSAL","VALIDATED_HOLD"),code:code}),proposal,context:wire,payloadJSON:txt(131072)};
 const attributionSchema = fields({responseContract:choice("chronos.preference-extraction.v1","chronos.agent-proposal.v2"),
-  interpretationOrigin:choice("MODEL","NOT_RECORDED"),selectionOrigin:choice("DETERMINISTIC_CODE","NOT_RECORDED")});
+  interpretationOrigin:choice("MODEL","RECORDED_MODEL","NOT_RECORDED"),selectionOrigin:choice("DETERMINISTIC_CODE","NOT_RECORDED")});
 const legacyDetail = fields(detailFields);
 const currentDetail = fields({...detailFields,schema:choice("chronos.review-detail.v2"),attribution:attributionSchema});
 const nativeTraceSchema = fields({aiHubSessionId:txt(18,/^[0-9]{1,18}$/),
@@ -82,7 +82,7 @@ const tracedDetail = fields({...detailFields,schema:choice("chronos.review-detai
 function detailSchema(raw) {
   if (raw?.schema === "chronos.review-detail.v1") return legacyDetail(raw);
   const d=raw?.schema === "chronos.review-detail.v3" ? tracedDetail(raw) : currentDetail(raw),a=d.attribution;
-  if(a.responseContract==="chronos.preference-extraction.v1")need(a.interpretationOrigin==="MODEL"&&a.selectionOrigin==="DETERMINISTIC_CODE");
+  if(a.responseContract==="chronos.preference-extraction.v1")need(["MODEL","RECORDED_MODEL"].includes(a.interpretationOrigin)&&a.selectionOrigin==="DETERMINISTIC_CODE");
   else need(a.interpretationOrigin==="NOT_RECORDED"&&a.selectionOrigin==="NOT_RECORDED");
   return d;
 }
@@ -171,10 +171,12 @@ export function decisionDetailView(envelope,{expectedId,expectedGeneration,expec
     const seconds = value => String(num(value)/1000000)+" s";
     const utc = value => { const t=unixMicrosecondsUTC(value); need(t !== null); return t; };
     const e1=d.attribution?.responseContract==="chronos.preference-extraction.v1";
+    const recorded=d.attribution?.interpretationOrigin==="RECORDED_MODEL";
     const attributionSection=e1 ? section("How this proposal was produced",
+      recorded ? "A sealed recorded interpretation was used; no fresh model inference occurred. Current deterministic code checked eligibility, selected among the available options and assembled this proposal. The recording cannot approve or send a recovery." :
       "The model interpreted the preference and cited evidence. Code selected among the checked options and assembled the proposal. HOLD fields can be supplied or normalized by code; this is not a verbatim model transcript.",[
         row("Response contract",d.attribution.responseContract),
-        row("Preference interpretation","Model — compare with the original messages and policy below"),
+        row("Preference interpretation",recorded ? "Recorded model fixture — 0 fresh inference calls" : "Model — compare with the original messages and policy below"),
         row("Option selection","Deterministic code — applies the interpreted preference to the checked options"),
         row("Identity and constraints","Code binds the original context and validates the proposal; a fresh server check is still required"),
       ]) : section("How this proposal was produced",
@@ -184,6 +186,7 @@ export function decisionDetailView(envelope,{expectedId,expectedGeneration,expec
       ]);
     const t=d.nativeTrace;
     const traceSection=t ? section("Original IRIS execution",
+      recorded ? "These IDs identify this recorded-fixture run through IRIS and the AI Hub SDK. They are not the original capture's inference session and do not prove a fresh model call. The snapshot was saved before Chat; current native checks still apply." :
       "Original IDs bound before the model call, not the session of this page request. The AI Hub snapshot was saved BEFORE Chat; it is not a completion transcript. Message availability and portal access are checked by IRIS separately.",[
         row("IRIS namespace",t.namespace ?? "Not supplied by this evidence source"),
         row("Interoperability session",t.interopSessionId),row("AI Hub session",t.aiHubSessionId),
@@ -256,7 +259,7 @@ export function appendDetailSections(document,parent,sections = []) {
       }
       owner=history;
     }
-    const folded = model.title === "Source catalog" || model.title === "Known future changes" || model.title.startsWith("Counterfactual trial");
+    const folded = ["How this proposal was produced", "Original IRIS execution", "Source catalog", "Known future changes"].includes(model.title) || model.title.startsWith("Counterfactual trial");
     const s=make(folded ? "details" : "section",undefined,owner);s.className="chronos-detail-section"+(folded ? " chronos-fold" : "");
     const headingParent = folded ? make("summary",undefined,s) : s;
     make("h3",model.title,headingParent);make("p",model.note,s);

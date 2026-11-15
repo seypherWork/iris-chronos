@@ -57,6 +57,7 @@ def historical_change(current_json,previous_json,scope,*,projector,receipt_valid
     return text,source
 
 REVIEW_REASONS={
+    'CLARIFICATION_SOURCE_REQUIRED':'this chat read lacks a fresh native clarification check',
     'ABLATION_NOT_ACTIONABLE':'the comparison-only mode uses analytical estimates without executable trial validation',
     'STALE_CONTEXT':'the case facts or review binding changed',
     'REVIEW_EXPIRED':'the original human-review window has expired',
@@ -89,6 +90,11 @@ def current_review(decision,observation,authority,*,now_us,gate_state,generation
     v1.need(result.get('dispatch_authorized') is False,'REVIEW_CANNOT_AUTHORIZE')
     if status=='REVIEWABLE' and code=='HUMAN_PREVIEW_REQUIRED':
         text='At this read, the recorded proposal remains eligible for a separate human review. This does not create, renew or confirm a preview, and does not establish that an earlier preview is still valid.'
+    elif status=='ERROR' and code=='CLARIFICATION_SOURCE_REQUIRED':
+        # The chat has historical evidence, not the fresh native Task/account
+        # check used by the separate preview. Never promote an archived
+        # clarification into current authorization or fail the whole chat.
+        text='This chat read does not include a fresh native clarification check and cannot establish current eligibility. The separate preview must check the current clarification and authority before confirmation. Chat cannot create, renew or confirm a preview.'
     elif code in REVIEW_REASONS and status in {'REJECTED','RECHECK_REQUIRED','ERROR'}:
         text='The recorded proposal cannot currently proceed to confirmation because '+REVIEW_REASONS[code]+'. An earlier preview must not be reused to bypass this check. Resolve the stated condition and obtain a fresh evaluation and preview as required.'
     else:raise c.Invalid('CURRENT_REVIEW_UNAVAILABLE')

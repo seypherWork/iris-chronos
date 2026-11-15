@@ -46,6 +46,8 @@ CONVERSATION_FIELDS = set("schema conversation_id turn_id context_digest intent 
 EXTRACTION_CONTRACT = "chronos.preference-extraction.v1"
 # Keep the local E1 decision and case chat on one verified Ollama context policy.
 NATIVE_CONTEXT_CONTRACTS = (EXTRACTION_CONTRACT, *CONVERSATION_CONTRACTS)
+RECORDED_PROVIDER = 'recorded-fixture'
+RECORDED_MODEL = 'chronos-recorded-fixture-v1'
 EXTRACTION_FIELDS = set("schema_version interpreted_preference reason_code source_ids rationale clarification".split())
 
 
@@ -82,6 +84,8 @@ class Rejected(Exception):
 
 # Fixed diagnostics only. Never include prompts, content, settings or exception text.
 DIAGNOSTIC_CODES = frozenset({
+    'RECORDED_INPUT_UNSUPPORTED',
+    'RECORDED_RESPONSE_UNAVAILABLE',
     'ALLOWANCE_UNAVAILABLE',
     'BUSY_NO_RETRY',
     'CLAIM_UNAVAILABLE',
@@ -127,6 +131,7 @@ DIAGNOSTIC_CODES = frozenset({
     'UPSTREAM_TIMEOUT',
     'UPSTREAM_UNAVAILABLE',
     'CONTEXT_POLICY_UNSUPPORTED',
+    'THINKING_POLICY_UNSUPPORTED',
     'NATIVE_RESPONSE_INVALID',
     'CONVERSATION_CONTENT_EMPTY',
     'CONVERSATION_THINKING_ONLY',
@@ -243,7 +248,8 @@ def request_body(raw, expected_schema, model=MODEL, profile_sha256=None, reasoni
         raise Rejected("REQUEST_ID")
     if profile_sha256 is not None and value.get('chronos_profile_sha256')!=profile_sha256:
         raise Rejected('PROFILE_MISMATCH')
-    if (reasoning_effort not in ("none","low","medium") or (reasoning_effort!="none" and profile_sha256 is None)
+    if (reasoning_effort not in ("none","low","medium","on") or (reasoning_effort!="none" and profile_sha256 is None)
+            or (reasoning_effort=="on" and contract!=EXTRACTION_CONTRACT)
             or value["model"] != model or value["reasoning_effort"] != reasoning_effort
             or type(value["temperature"]) not in (int, float) or value["temperature"] != 0
             or type(value["max_tokens"]) is not int or value["max_tokens"] != 2048):
@@ -409,11 +415,13 @@ class Claims:
 class Settings:
     schema: dict
     claims: Claims
-    upstream_port: int = 11513
+    upstream_port: int | None = 11513
     budget_seconds: float = 28
     model: str = MODEL
     profile_sha256: str | None = None
     reasoning_effort: str = "none"
+    transport_kind: str = 'ollama'
+    recorded_handler: object = None
 
 
 class BudgetedClaims:
@@ -421,31 +429,35 @@ class BudgetedClaims:
     def __init__(self,allowance):self.allowance=allowance
 
     def claim(self,request_id,digest,deadline_us=None):
-        from deployment import DeploymentError
+        try:from .deployment import DeploymentError
+        except ImportError:from deployment import DeploymentError
         try:return self.allowance.claim(request_id,digest,deadline_us)
         except (DeploymentError,sqlite3.Error) as exc:
             code=str(exc) if isinstance(exc,DeploymentError) else 'ALLOWANCE_UNAVAILABLE'
             raise Rejected(code) from None
 
     def finish(self,request_id,result):
-        from deployment import DeploymentError
+        try:from .deployment import DeploymentError
+        except ImportError:from deployment import DeploymentError
         outcome='VERIFIED_STOP' if result=='VERIFIED_STOP' else 'UNCERTAIN'
         try:self.allowance.finish(request_id,outcome)
         except (DeploymentError,sqlite3.Error):pass # The committed slot stays spent.
 
 
 def validate_profile_schema(schema,profile):
-    if profile.provider!='ollama':raise ValueError('REMOTE_PROVIDER_NOT_ENABLED')
+    if profile.provider not in ('ollama',RECORDED_PROVIDER):raise ValueError('REMOTE_PROVIDER_NOT_ENABLED')
     digest=sha256(json.dumps(schema,sort_keys=True,separators=(',',':'),ensure_ascii=True).encode()).hexdigest()
     if profile.schema_sha256!=digest:raise ValueError('PROFILE_SCHEMA_MISMATCH')
     if response_contract(schema)!=profile.response_contract:
         raise ValueError('PROFILE_RESPONSE_CONTRACT_MISMATCH')
 
 
-def configured_settings(schema,allowance,budget_seconds=28):
+def configured_settings(schema,allowance,budget_seconds=28,*,recorded_handler=None):
     profile=allowance.profile
     validate_profile_schema(schema,profile)
-    return Settings(schema,BudgetedClaims(allowance),profile.local_port,budget_seconds,profile.model,profile.digest,profile.reasoning_effort)
+    if profile.provider=='ollama' and recorded_handler is not None:raise ValueError('LIVE_HANDLER_OVERRIDE_FORBIDDEN')
+    return Settings(schema,BudgetedClaims(allowance),profile.local_port,budget_seconds,profile.model,profile.digest,profile.reasoning_effort,
+                    profile.provider,recorded_handler)
 
 
 class _CancellableReader(io.RawIOBase):
@@ -598,6 +610,19 @@ def verify_context_policy(settings, disconnected=lambda: False, absolute_deadlin
     value=strict_json(raw)
     if type(value) is not dict or value != {"version":NATIVE_CONTEXT_VERSION}:
         raise Rejected("CONTEXT_POLICY_UNSUPPORTED")
+    if settings.reasoning_effort=='on':
+        if settings.transport_kind!='ollama' or response_contract(settings.schema)!=EXTRACTION_CONTRACT:
+            raise Rejected('THINKING_POLICY_UNSUPPORTED')
+        # /show can include templates and prompts: inspect controls in memory
+        # only, never return, retain or include arbitrary metadata in diagnostics.
+        raw=upstream_exchange(settings,{'model':settings.model},disconnected,absolute_deadline,
+                              method='POST',path='/api/show')
+        value=strict_json(raw)
+        thinking=value.get('thinking') if type(value) is dict else None
+        values=thinking.get('values') if type(thinking) is dict else None
+        if (type(values) is not list or not 1<=len(values)<=16
+                or not any(type(item) is bool and item is True for item in values)):
+            raise Rejected('THINKING_POLICY_UNSUPPORTED')
 
 
 def plan_v2_binding(body):
@@ -633,10 +658,13 @@ def native_conversation_request(body):
     # Shared local E1/chat bridge; E1 keeps its original extraction schema.
     # Called only after the public request has passed request_body(). Never
     # trim history, rewrite messages, alter context size, or enable tools.
+    if body['reasoning_effort']=='on' and response_contract(body['response_format']['json_schema']['schema'])!=EXTRACTION_CONTRACT:
+        raise Rejected('REQUEST_POLICY')
     return {"model":body["model"],"messages":body["messages"],
             "format":native_conversation_schema(body),
             "stream":False,"truncate":False,"shift":False,
-            "think":False if body["reasoning_effort"]=="none" else body["reasoning_effort"],
+            "think":(True if body['reasoning_effort']=='on' else
+                     False if body["reasoning_effort"]=="none" else body["reasoning_effort"]),
             "options":{"temperature":body["temperature"],"num_predict":body["max_tokens"]}}
 
 
@@ -670,6 +698,34 @@ def forward(settings, body, request_id, disconnected=lambda: False, absolute_dea
         wire_deadline=time.monotonic()+(body['chronos_deadline_us']-time.time_ns()//1000)/1_000_000
         absolute_deadline=min(absolute_deadline,wire_deadline) if absolute_deadline is not None else wire_deadline
     contract=response_contract(settings.schema)
+    if settings.transport_kind==RECORDED_PROVIDER:
+        validate_recorded_settings(settings)
+        def active():
+            if disconnected() or (absolute_deadline is not None and time.monotonic()>=absolute_deadline):
+                raise Rejected('REQUEST_TIMEOUT')
+        active()
+        try:
+            captured=settings.recorded_handler(contract,body['messages'][1]['content'],
+                sha256(body['messages'][0]['content'].encode('utf-8')).hexdigest())
+        except Exception:
+            raise Rejected('RECORDED_INPUT_UNSUPPORTED') from None
+        active()
+        try:
+            metadata=captured.metadata
+            if (type(metadata) is not dict or metadata.get('mode')!='RECORDED_FIXTURE'
+                    or metadata.get('fresh_inference') is not False):
+                raise ValueError('RECORDED_METADATA_REQUIRED')
+            # These are protocol counters for newly generated tokens: zero.
+            # Historical model usage belongs to corpus provenance, not this call.
+            envelope={'model':settings.model,'choices':[{'finish_reason':'stop','message':{
+                'role':'assistant','content':captured.response_text}}],
+                'usage':{'prompt_tokens':0,'completion_tokens':0,'total_tokens':0}}
+            return checked_response(json.dumps(envelope),request_id,settings.model,settings.profile_sha256,contract)
+        except Rejected:raise
+        except Exception:
+            raise Rejected('RECORDED_RESPONSE_UNAVAILABLE') from None
+    if settings.transport_kind!='ollama' or settings.recorded_handler is not None:
+        raise Rejected('RECORDED_RESPONSE_UNAVAILABLE')
     if contract in NATIVE_CONTEXT_CONTRACTS:
         raw=upstream_exchange(settings,native_conversation_request(body),disconnected,
                               absolute_deadline,path="/api/chat")
@@ -678,13 +734,40 @@ def forward(settings, body, request_id, disconnected=lambda: False, absolute_dea
     return checked_response(raw,request_id,settings.model,settings.profile_sha256,contract)
 
 
+def validate_recorded_settings(settings):
+    if (settings.transport_kind!=RECORDED_PROVIDER or settings.upstream_port is not None
+            or not callable(settings.recorded_handler) or settings.model!=RECORDED_MODEL
+            or settings.reasoning_effort!='none' or type(settings.profile_sha256) is not str
+            or re.fullmatch(r'[a-f0-9]{64}',settings.profile_sha256) is None
+            or response_contract(settings.schema) not in (EXTRACTION_CONTRACT,PLAN_V2_CONTRACT)):
+        raise ValueError('INVALID_RECORDED_FIXTURE_SETTINGS')
+    if (not isinstance(settings.claims,BudgetedClaims)
+            or settings.claims.allowance.profile.provider!=RECORDED_PROVIDER
+            or settings.claims.allowance.profile.digest!=settings.profile_sha256):
+        raise ValueError('RECORDED_DURABLE_PROFILE_ALLOWANCE_REQUIRED')
+
+
 def make_server(settings, port=11512):
     if response_contract(settings.schema) in CONVERSATION_CONTRACTS and settings.profile_sha256 is None:raise ValueError("CONVERSATION_PROFILE_REQUIRED")
     if response_contract(settings.schema)==EXTRACTION_CONTRACT and settings.profile_sha256 is None:raise ValueError("EXTRACTION_PROFILE_REQUIRED")
-    if settings.reasoning_effort not in ("none","low","medium") or (settings.reasoning_effort!="none" and settings.profile_sha256 is None):
+    if settings.reasoning_effort not in ("none","low","medium","on") or (settings.reasoning_effort!="none" and settings.profile_sha256 is None):
         raise ValueError("REASONING_PROFILE_REQUIRED")
-    if not 0 < settings.budget_seconds <= 28 or not 1024 <= settings.upstream_port <= 65535:
+    if settings.reasoning_effort=='on':
+        if (settings.transport_kind!='ollama' or response_contract(settings.schema)!=EXTRACTION_CONTRACT
+                or not isinstance(settings.claims,BudgetedClaims)):
+            raise ValueError('REASONING_ON_E1_OLLAMA_PROFILE_REQUIRED')
+        profile=settings.claims.allowance.profile
+        if (profile.version!=3 or profile.provider!='ollama' or profile.reasoning_effort!='on'
+                or profile.digest!=settings.profile_sha256):
+            raise ValueError('REASONING_ON_E1_OLLAMA_PROFILE_REQUIRED')
+    if not 0 < settings.budget_seconds <= 28:
         raise ValueError("Invalid fixed deployment settings")
+    if settings.transport_kind==RECORDED_PROVIDER:
+        validate_recorded_settings(settings)
+    elif (settings.transport_kind!='ollama' or settings.recorded_handler is not None
+          or type(settings.upstream_port) is not int or not 1024<=settings.upstream_port<=65535
+          or settings.model==RECORDED_MODEL):
+        raise ValueError('INVALID_LIVE_TRANSPORT_SETTINGS')
     if not isinstance(settings.model,str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}',settings.model):
         raise ValueError('INVALID_MODEL')
     if settings.profile_sha256 is None:
@@ -770,7 +853,7 @@ def make_server(settings, port=11512):
                 # GET and POST share the network budget. Capability rejection
                 # precedes the durable inference claim and performs no inference.
                 transport_deadline=self.operation_deadline
-                if response_contract(settings.schema) in NATIVE_CONTEXT_CONTRACTS:
+                if settings.transport_kind=='ollama' and response_contract(settings.schema) in NATIVE_CONTEXT_CONTRACTS:
                     transport_deadline=min(transport_deadline,time.monotonic()+settings.budget_seconds)
                     verify_context_policy(settings,disconnected,transport_deadline)
                 if self.expired() or time.monotonic()>=transport_deadline:

@@ -4,6 +4,7 @@ import {appendDetailSections, appendResultRows} from "./detail.mjs";
 import {mountConsentPanel} from "./consent-panel.mjs";
 import {createResultController} from "./controller.mjs";
 import {createSessionRecoveryReferences} from "./session-references.mjs";
+import {mountWorkflowPanel} from "./workflow-panel.mjs";
 
 const ID = /^[A-Za-z0-9_.-]{1,128}$/;
 const PROVENANCE = Object.freeze({
@@ -57,6 +58,9 @@ export function mountResultScreen(root, {client, storage = null, evidence = "UNV
       .every(method => typeof client[method] === "function");
   const conversationEnabled = mode === "LIVE" && ["connect","disconnect","sessionStatus","sessionIdentity",
     "conversationAvailable","openConversation","readConversation","recordConversation"].every(m=>typeof client[m]==="function");
+  const clarificationEnabled = mode === "LIVE" && ["connect","disconnect","sessionStatus","sessionIdentity",
+    "startClarification","readClarification","completeClarification","readClarificationCompletion","reevaluateClarification"]
+    .every(m=>typeof client[m]==="function");
   const create = (tag, text, parent) => {
     const element = document.createElement(tag);
     if (text !== undefined) element.textContent = text;
@@ -96,12 +100,29 @@ export function mountResultScreen(root, {client, storage = null, evidence = "UNV
     create("span", cls.includes("blocked") ? "×" : undefined, art).className = cls;
   }
   create("p", PROVENANCE[mode], header).className = "chronos-provenance";
+  const executionNotice=create("p",undefined,header);
+  executionNotice.className="chronos-provenance";
+  executionNotice.setAttribute("aria-label","Agent execution mode");
+  const refreshExecution=()=>{
+    let execution;
+    try {execution=client.sessionExecution?.();} catch {execution=null;}
+    executionNotice.textContent=execution?.mode==="RECORDED_FIXTURE" ?
+      "Recorded interpretation · current IRIS checks · 0 fresh inference calls. Four fixed cases and four supported questions only." :
+      execution?.mode==="LIVE_MODEL" ?
+        "Live model configured · current IRIS checks. Configuration alone does not prove an inference completed." :
+      execution?.mode==="NOT_CONFIGURED" ? "Agent provider not configured. No model execution is claimed." :
+        "Agent execution mode unverified by this server. No fresh inference is claimed.";
+  };
+  refreshExecution();
   create("p", consentEnabled ? "Inspect original evidence, prepare an exact preview and explicitly approve or reject it." :
     "Inspect an existing decision or preview. This screen cannot approve or send a recovery.", header).className = "hint";
   const stages = create("ol", undefined, frame); stages.className = "chronos-stages"; stages.setAttribute("aria-label", "Workflow section, not authorization or delivery status");
   const stageItems = [];
   for (const [index, name] of ["Proposal", "Verification", "Confirmation"].entries()) {
-    const step = create("li", undefined, stages); stageItems.push(step); create("strong", "0" + (index + 1), step); create("span", name, step);
+    const step = create("li", undefined, stages); stageItems.push(step);
+    const stepIcon = create("span", undefined, step); stepIcon.className = "chronos-stage-icon chronos-stage-icon--" + index; stepIcon.setAttribute("aria-hidden", "true");
+    create("strong", "0" + (index + 1), step); create("span", name, step);
+    if (index < 2) { const arrow = create("span", undefined, step); arrow.className = "chronos-stage-arrow"; arrow.setAttribute("aria-hidden", "true"); }
   }
   const showSection = index => stageItems.forEach((step, i) => {
     step.className = i === index ? "is-current" : "";
@@ -148,9 +169,18 @@ export function mountResultScreen(root, {client, storage = null, evidence = "UNV
   const forget = create("button", "Remove bookmark", recoveryActions); forget.type = "button"; forget.disabled = true;
   const recovery = create("p", "Browser recovery references are not configured.", recoveryPanel);
   recovery.className = "hint"; recovery.setAttribute("role", "status");
-  const result = create("section", undefined, frame);
-  result.setAttribute("aria-label", "Current result");
-  const chatRoot = conversationEnabled ? create("section", undefined, frame) : null;
+  const caseLayout = create("div", undefined, frame); caseLayout.className = "chronos-case-layout";
+  const conversationContext = create("aside", undefined, caseLayout); conversationContext.className = "chronos-conversation-context"; conversationContext.hidden = true;
+  conversationContext.setAttribute("aria-label", "Conversation case context");
+  create("p", "CASE CONTEXT", conversationContext).className = "eyebrow";
+  create("h2", "Discuss this decision", conversationContext);
+  const conversationReference = create("p", undefined, conversationContext); conversationReference.className = "chronos-chat-refs";
+  create("p", "The selected reference anchors this conversation. Check the cited records in each reply.", conversationContext);
+  create("p", "Chat explains evidence. Shipment approval remains a separate action.", conversationContext).className = "hint";
+  const result = create("section", undefined, caseLayout);
+  result.setAttribute("aria-label", "Current result"); result.className = "chronos-current-result";
+  const chatRoot = conversationEnabled ? create("section", undefined, caseLayout) : null;
+  const clarificationRoot = clarificationEnabled ? create("section", undefined, frame) : null;
   const consentRoot = consentEnabled ? create("section", undefined, frame) : null;
   frame.appendChild(recoveryPanel);
   const limits = create("aside", undefined, frame); limits.className = "chronos-limits";
@@ -161,9 +191,11 @@ export function mountResultScreen(root, {client, storage = null, evidence = "UNV
       "Approval requires a configured live installation and session-bound recovery storage. ") +
     "This screen alone does not demonstrate a real-model run.", limits);
   root.replaceChildren(shell);
-  let destroyed = false, controller, consentPanel = null, conversationPanel = null, activeMode = "read";
+  let destroyed = false, controller, consentPanel = null, conversationPanel = null, clarificationPanel = null, activeMode = "read";
   const setActiveMode = value => {
     activeMode = value;
+    conversationContext.hidden = value !== "conversation";
+    conversationReference.textContent = value === "conversation" ? "Decision: " + id.value : "";
     if (outcomeNotice) outcomeNotice.hidden = true;
     if (chatRoot) chatRoot.hidden = value === "consent";
   };
@@ -189,12 +221,14 @@ export function mountResultScreen(root, {client, storage = null, evidence = "UNV
     return card;
   };
   const paint = state => {
+    refreshExecution();
     if (destroyed || activeMode !== "read") return;
     try {
       clearResults(); showSection(null);
       const busy = ["CONNECTING", "LOADING", "LOGGING_OUT"].includes(state.phase);
       lookup.disabled = busy;
       conversationPanel?.setAvailable(!busy && !["LOGGED_OUT","LOGOUT_UNCONFIRMED"].includes(state.phase));
+      clarificationPanel?.setAvailable(!busy && !["LOGGED_OUT","LOGOUT_UNCONFIRMED"].includes(state.phase));
       consentPanel?.setPreparationBlock(controller.preparationBlockReason());
       consentPanel?.setAvailable(!busy && !["LOGGED_OUT","LOGOUT_UNCONFIRMED"].includes(state.phase));
       currentOperation.disabled = !controller.canReadCurrentOperation();
@@ -229,7 +263,7 @@ export function mountResultScreen(root, {client, storage = null, evidence = "UNV
       clearResults(); showSection(null); clearSavedOptions(); saved.disabled = true;
       loadSaved.disabled = true; reopen.disabled = true; forget.disabled = true;
       lookup.disabled = true; reconcile.disabled = true; detail.disabled = true; currentOperation.disabled = true;
-      consentPanel?.setAvailable(false); conversationPanel?.setAvailable(false);
+      consentPanel?.setAvailable(false); conversationPanel?.setAvailable(false); clarificationPanel?.setAvailable(false);
       status.textContent = ERROR_MESSAGES.PRESENTATION_FAILED;
       throw new Error("PRESENTATION_FAILED");
     }
@@ -239,7 +273,7 @@ export function mountResultScreen(root, {client, storage = null, evidence = "UNV
     selection: () => ({kind:kind.value,id:id.value}),
     preparationBlock: () => controller.preparationBlockReason(),
     onActivate() {
-      setActiveMode("consent"); conversationPanel?.deactivate(); controller.disconnect(); clearResults(); clearSavedOptions();
+      setActiveMode("consent"); conversationPanel?.deactivate(); clarificationPanel?.deactivate(); controller.disconnect(); clearResults(); clearSavedOptions();
       saved.disabled = true; reopen.disabled = true; forget.disabled = true;
       detail.disabled = true; reconcile.disabled = true; currentOperation.disabled = true;
       showSection(1);
@@ -251,9 +285,11 @@ export function mountResultScreen(root, {client, storage = null, evidence = "UNV
       outcomeNotice.hidden = !show;
     },
     onBusy(busy) {
+      refreshExecution();
       if (destroyed || activeMode !== "consent") return;
       lookup.disabled = busy;
       conversationPanel?.setAvailable(!busy); loadSaved.disabled = busy || !references;
+      clarificationPanel?.setAvailable(!busy);
       // Logout remains available to invalidate an in-flight action; this cannot undo a sent change.
       logout.disabled = false;
     },
@@ -261,7 +297,7 @@ export function mountResultScreen(root, {client, storage = null, evidence = "UNV
   if (chatRoot) conversationPanel = mountConversationPanel(chatRoot, {
     client, selection:()=>({kind:kind.value,id:id.value}),
     onActivate() {
-      setActiveMode("conversation"); consentPanel?.deactivate(); controller.disconnect(); clearResults(); clearSavedOptions();
+      setActiveMode("conversation"); consentPanel?.deactivate(); clarificationPanel?.deactivate(); controller.disconnect(); clearResults(); clearSavedOptions();
       saved.disabled=true; reopen.disabled=true; forget.disabled=true;
       detail.disabled=true; reconcile.disabled=true; currentOperation.disabled=true;
       showSection(0);
@@ -269,17 +305,39 @@ export function mountResultScreen(root, {client, storage = null, evidence = "UNV
       recovery.textContent="The conversation remains in this tab. Read the original conversation after an uncertain reply.";
     },
     onBusy(busy) {
+      refreshExecution();
       if(destroyed||activeMode!=="conversation")return;
       lookup.disabled=busy;loadSaved.disabled=busy||!references;logout.disabled=false;
       consentPanel?.setAvailable(!busy);
+      clarificationPanel?.setAvailable(!busy);
+    },
+  });
+  if(clarificationRoot)clarificationPanel=mountWorkflowPanel(clarificationRoot,{
+    client,selection:()=>({kind:kind.value,id:id.value}),now,
+    onActivate(){
+      setActiveMode("clarification");conversationPanel?.deactivate();consentPanel?.deactivate();controller.disconnect();
+      clearResults();clearSavedOptions();saved.disabled=true;reopen.disabled=true;forget.disabled=true;
+      detail.disabled=true;reconcile.disabled=true;currentOperation.disabled=true;showSection(0);
+      status.textContent="Native clarification is active below. Shipment approval remains separate.";
+      recovery.textContent="Keep the original decision ID. Read the original task and registered new decision after an uncertain reply.";
+    },
+    onBusy(busy){
+      if(destroyed||activeMode!=="clarification")return;
+      refreshExecution();lookup.disabled=busy;loadSaved.disabled=busy||!references;logout.disabled=false;
+      conversationPanel?.setAvailable(!busy);consentPanel?.setAvailable(!busy);
+    },
+    onDecision(decisionId){
+      if(destroyed||!ID.test(decisionId))return;
+      enterReadMode();kind.value="decision";id.value=decisionId;
+      return act(()=>controller.select("decision",decisionId));
     },
   });
   const enterReadMode = () => {
     if (activeMode === "read") return;
-    setActiveMode("read"); conversationPanel?.deactivate(); consentPanel?.deactivate(); controller.disconnect();
+    setActiveMode("read"); conversationPanel?.deactivate(); consentPanel?.deactivate(); clarificationPanel?.deactivate(); controller.disconnect();
   };
   const invalidate = () => {
-    setActiveMode("read"); conversationPanel?.deactivate(); consentPanel?.deactivate(); controller.disconnect();
+    setActiveMode("read"); conversationPanel?.deactivate(); consentPanel?.deactivate(); clarificationPanel?.deactivate(); controller.disconnect();
   };
   controller = createResultController({client, references, evidence: mode, onChange: paint});
   paint(controller.snapshot());
@@ -356,7 +414,7 @@ export function mountResultScreen(root, {client, storage = null, evidence = "UNV
   return Object.freeze({
     destroy() {
       if (destroyed) return;
-      destroyed = true; conversationPanel?.destroy(); consentPanel?.destroy(); controller.disconnect(); clearResults();
+      destroyed = true; conversationPanel?.destroy(); consentPanel?.destroy(); clarificationPanel?.destroy(); controller.disconnect(); clearResults();
       for (const [element, type, handler] of listeners) element.removeEventListener(type, handler);
       root.replaceChildren();
     },

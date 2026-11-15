@@ -5,14 +5,25 @@ Class Chronos.Deployment.NativeConversation Extends %RegisteredObject
 {
 ClassMethod ProviderProfile(id As %String) As %String [ Private, Language = python ]
 {
-    import hashlib,importlib.util,json
+    import hashlib,importlib.util,json,re,subprocess
     from pathlib import Path
-    path=Path('/opt/chronos/deployment/conversation_provider.py')
+    runtime=Path('/opt/chronos/conversation-runtime')
+    replay=runtime/'fixture-conversation-provider'
+    is_replay=replay.exists()
+    if is_replay and {p.name for p in runtime.iterdir()}!={'fixture-conversation-provider'}:raise ValueError('EXACTLY_ONE_OWNED_PROVIDER_REQUIRED')
+    if is_replay:
+        if re.fullmatch(r'[a-f0-9]{32}',id) is None:raise ValueError('INVALID_DEPLOYMENT_ID')
+        result=subprocess.run(['/usr/bin/python3','-B','/opt/chronos/deployment/replay_provider.py','status',
+            '--deployment-id',id,'--contract','c2-v2','--runtime',str(runtime)],capture_output=True,timeout=10,check=False)
+        if result.returncode!=0 or len(result.stdout)>16384:raise ValueError('REPLAY_PROVIDER_UNAVAILABLE')
+        return json.dumps(json.loads(result.stdout),sort_keys=True,allow_nan=False)
+    path=Path('/opt/chronos/deployment/replay_provider.py' if is_replay else '/opt/chronos/deployment/conversation_provider.py')
     if path.resolve()!=path:raise ValueError('LINKED_PROVIDER_HELPER')
     name='chronos_native_conversation_'+hashlib.sha256(path.read_bytes()).hexdigest()
     spec=importlib.util.spec_from_file_location(name,path)
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
-    return json.dumps(module.status(id),sort_keys=True,allow_nan=False)
+    observed=module.status(id,runtime=runtime,contract='c2-v2') if is_replay else module.status(id)
+    return json.dumps(observed,sort_keys=True,allow_nan=False)
 }
 
 ClassMethod Run(action As %String, id As %String, origin As %String, application As %String, digest As %String, profileHash As %String, requestedContract As %String = "chronos.case-conversation.v1") As %String
@@ -43,7 +54,14 @@ ClassMethod Run(action As %String, id As %String, origin As %String, application
         Set responseContract=profile.%Get("response_contract")
         If responseContract'=requestedContract Throw ##class(%Exception.General).%New("CONVERSATION_CONTRACT_CHANGED")
         Set validPair=((profile.version=4)&&(responseContract="chronos.case-conversation.v1"))||((profile.version=5)&&(responseContract="chronos.case-explanation-plan.v1"))||((profile.version=6)&&(responseContract="chronos.case-explanation-plan.v2"))
-        If (observed.%Get("profile_sha256")'=profileHash)||('validPair)||(profile.provider'="ollama")||(profile.%Get("deployment_id")'=id)||(profile.%Get("local_port")'=11434) Throw ##class(%Exception.General).%New("CONVERSATION_PROFILE_REQUIRED")
+        If (observed.%Get("profile_sha256")'=profileHash)||('validPair)||(profile.%Get("deployment_id")'=id) Throw ##class(%Exception.General).%New("CONVERSATION_PROFILE_REQUIRED")
+        Set executionMode="LIVE_MODEL",corpusHash="",fixtureHash=""
+        If profile.provider="ollama" {
+            If profile.%Get("local_port")'=11434 Throw ##class(%Exception.General).%New("CONVERSATION_PORT_CHANGED")
+        } ElseIf profile.provider="recorded-fixture" {
+            If (profile.version'=6)||(profile.%GetTypeOf("local_port")'="null") Throw ##class(%Exception.General).%New("REPLAY_PROFILE_CHANGED")
+            Set executionMode="RECORDED_FIXTURE",corpusHash=profile.%Get("replay_corpus_sha256"),fixtureHash=profile.%Get("replay_fixture_sha256")
+        } Else { Throw ##class(%Exception.General).%New("UNSUPPORTED_PROVIDER") }
         Set authorization=action_":"_id_":"_digest_":"_profileHash
         If responseContract'="chronos.case-conversation.v1" Set authorization=authorization_":"_responseContract
         If action="configure",$System.Util.GetEnviron("CHRONOS_CONVERSATION_AUTHORIZED")'=authorization Throw ##class(%Exception.General).%New("EXPLICIT_ACTION_AUTHORIZATION_REQUIRED")
@@ -51,6 +69,7 @@ ClassMethod Run(action As %String, id As %String, origin As %String, application
         If (webProperties("NameSpace")'=s.namespace)||(webProperties("Resource")'=s.access)||(webProperties("DispatchClass")'="Chronos.Web.API") Throw ##class(%Exception.General).%New("WEB_OWNERSHIP_CHANGED")
         If action="configure",$Get(webProperties("Enabled"),1) Throw ##class(%Exception.General).%New("CONFIGURE_REQUIRES_DISABLED_WEB")
         Set $Namespace=s.namespace
+        Set sc=##class(Chronos.Agent.Model).CheckExecution(executionMode,profile.model,profileHash,profile.%Get("reasoning_effort"),corpusHash,fixtureHash) $$$ThrowOnError(sc)
         // Share the E1 installer/start fence without editing its record or quota.
         Lock +^ChronosJury("providerLock"):0
         If '$Test Set r.status="BUSY" Throw ##class(%Exception.General).%New("PROVIDER_BUSY")
@@ -60,7 +79,13 @@ ClassMethod Run(action As %String, id As %String, origin As %String, application
         Set web=##class(%DynamicObject).%FromJSON($Get(^ChronosWeb("config")))
         If (web.origin'=origin)||(web.application'=application)||($Length(web.installationId)'=64) Throw ##class(%Exception.General).%New("WEB_BINDING_CHANGED")
         Set e1Before=$Get(^ChronosAI18("config"))
-        Set expected=##class(Chronos.Conversation.Model).Spec("http://127.0.0.1:11514/v1/",profile.model,profileHash,profile.%Get("reasoning_effort"),##class(Chronos.Conversation.Model).ContractSchema(responseContract).%ToJSON())
+        If (action="configure")&&(e1Before="") Throw ##class(%Exception.General).%New("E1_CONFIGURATION_REQUIRED")
+        If e1Before'="" {
+            Set e1=##class(%DynamicObject).%FromJSON(e1Before)
+            If e1.%Get("executionMode","LIVE_MODEL")'=executionMode Throw ##class(%Exception.General).%New("PROVIDER_MODE_MISMATCH")
+            If executionMode="RECORDED_FIXTURE",(e1.%Get("replayCorpusSha256")'=corpusHash)||(e1.%Get("replayFixtureSha256")'=fixtureHash) Throw ##class(%Exception.General).%New("REPLAY_CORPUS_MISMATCH")
+        }
+        Set expected=##class(Chronos.Conversation.Model).Spec("http://127.0.0.1:11514/v1/",profile.model,profileHash,profile.%Get("reasoning_effort"),##class(Chronos.Conversation.Model).ContractSchema(responseContract).%ToJSON(),executionMode,corpusHash,fixtureHash)
         Set checked=##class(%DynamicObject).%FromJSON(expected)
         If checked.schemaSha256'=profile.%Get("schema_sha256") Throw ##class(%Exception.General).%New("C1_SCHEMA_CHANGED")
         Set sc=##class(Ens.Director).GetProductionStatus(.name,.state,0) $$$ThrowOnError(sc)
@@ -78,7 +103,7 @@ ClassMethod Run(action As %String, id As %String, origin As %String, application
             Set sc=##class(Chronos.Runtime.Durability).Check() $$$ThrowOnError(sc)
             Set ^ChronosJury("conversationProvider")=item.%ToJSON()
             Set sc=##class(Chronos.Runtime.Durability).Flush() $$$ThrowOnError(sc)
-            Set sc=##class(Chronos.Conversation.Model).Configure("http://127.0.0.1:11514/v1/",profile.model,profileHash,profile.%Get("reasoning_effort"),responseContract) $$$ThrowOnError(sc)
+            Set sc=##class(Chronos.Conversation.Model).Configure("http://127.0.0.1:11514/v1/",profile.model,profileHash,profile.%Get("reasoning_effort"),responseContract,executionMode,corpusHash,fixtureHash) $$$ThrowOnError(sc)
         }
         Set actual=$Get(^ChronosConversation("model"))
         If $IsObject(item) {

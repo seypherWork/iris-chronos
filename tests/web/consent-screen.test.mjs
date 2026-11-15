@@ -101,12 +101,14 @@ function setup({name="proposal",evidence="LIVE",timeoutMs=250,onChange=()=>{}}={
   const screen=mountResultScreen(root,{client,storage,evidence,now:()=>clock.now,
     schedule:fn=>{const id=++timerId;timers.set(id,fn);return id;},cancel:id=>timers.delete(id)});
   const button=label=>find(root,e=>e.tag==="button"&&e.textContent===label);
+  const consent=find(root,e=>e.attrs["aria-label"]==="Exact human approval");
   return {f,storage,wire,clock,client,screen,root,document,timers,button,decisionId:f.detail.data.decisionId,
     input:find(root,e=>e.attrs["aria-label"]==="Existing reference"),
     kind:find(root,e=>e.attrs["aria-label"]==="Reference type"),
-    ack:find(root,e=>e.type==="checkbox"),
-    body:find(root,e=>e.attrs["aria-label"]==="Approval evidence"),
-    consent:find(root,e=>e.attrs["aria-label"]==="Exact human approval"),
+    ack:consent&&find(consent,e=>e.tag==="input"&&e.type==="checkbox"&&
+      e.attrs["aria-label"]==="I reviewed and authorize this exact recovery"),
+    body:consent&&find(consent,e=>e.attrs["aria-label"]==="Approval evidence"),
+    consent,
     fireTimer(){const [id,fn]=[...timers.entries()][0];timers.delete(id);fn();},
     sessionResponse:()=>json({code:"CONNECTED",authenticated:true,csrf:"c".repeat(64),canRead:true,canApprove:true,
       identity:{version:1,available:true,actor:wire.actor,actorScope:wire.scope,applicationUrl:"https://chronos.example/csp/chronos/"}})};
@@ -260,6 +262,28 @@ test("render failure clears evidence and keeps confirmation disabled",async()=>{
   assert.equal(s.body.textContent,"");assert.equal(s.ack.checked,false);
   assert.equal(s.button("Confirm exact recovery").disabled,true);assert.equal(s.timers.size,0);
   assert.equal(count(s,"CONFIRM"),0);s.screen.destroy();
+});
+
+test("clarification acknowledgement is separate from exact shipment consent and cannot enable confirmation",async()=>{
+  const s=setup();
+  const clarification=find(s.root,e=>e.attrs["aria-label"]==="Native human clarification");
+  assert.ok(clarification);
+  const informationOnly=find(clarification,e=>e.tag==="input"&&e.type==="checkbox"&&
+    e.attrs["aria-label"]==="Clarification records information only");
+  assert.ok(informationOnly);assert.ok(s.ack);assert.notEqual(informationOnly,s.ack);
+  assert.equal(flatten(s.consent).filter(e=>e.type==="checkbox").length,1);
+  assert.equal(flatten(clarification).filter(e=>e.type==="checkbox").length,1);
+  assert.equal(flatten(s.consent).includes(informationOnly),false);
+  await prepare(s);
+  assert.equal(s.ack.checked,false);
+  assert.equal(s.button("Confirm exact recovery").disabled,true);
+  informationOnly.checked=true;await informationOnly.dispatch("change");
+  assert.equal(s.ack.checked,false);
+  assert.equal(s.button("Confirm exact recovery").disabled,true);
+  await s.button("Confirm exact recovery").dispatch("click");
+  assert.equal(count(s,"CONFIRM"),0);
+  assert.equal(count(s,"PREVIEW_REQUEST"),1);
+  s.screen.destroy();
 });
 
 test("read-only or unavailable native identity cannot enable confirmation",async()=>{

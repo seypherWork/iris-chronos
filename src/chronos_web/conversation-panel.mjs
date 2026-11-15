@@ -1,4 +1,5 @@
 import {createConversationController} from "./conversation-controller.mjs";
+import {RECORDED_QUESTIONS} from "./client.mjs";
 
 const BUSY=new Set(["CONNECTING","OPENING","READING","SENDING"]);
 const TEXT={IDLE:"Open a completed decision to discuss its evidence.",CONNECTING:"Checking your IRIS session…",
@@ -19,7 +20,9 @@ const REJECTED_MESSAGES=Object.freeze({
   MODEL_NOT_STARTED:"Chronos did not start a model call for this question before its start window closed.",
   CONTEXT_CHANGED:"Chronos could not confirm that the case context still matched this question, so the model was not started.",
   PROVIDER_REFUSED:"The model provider declined to answer this question. No answer was accepted.",
-  COMPLETION_REJECTED:"Chronos could not validate the reply against this case and its required format. It was not accepted as an answer."
+  COMPLETION_REJECTED:"Chronos could not validate the reply against this case and its required format. It was not accepted as an answer.",
+  RECORDED_INPUT_UNSUPPORTED:"The recorded fixture does not contain this question or context. Choose one of the four supported questions; no new inference or preference change occurred.",
+  REPLAY_UNSUPPORTED:"The recorded fixture does not contain this question or context. Choose one of the four supported questions; no new inference or preference change occurred."
 });
 const TOPIC_LABELS={DECISION:"Why this option",COMPARISON:"Comparing the options",OPERATION_STATUS:"Recorded operation",PHYSICAL_DELIVERY:"Delivery evidence",PREFERENCE_CHANGE:"Proposed priority",APPROVAL_REQUIREMENTS:"Before confirming",CLARIFY:"Clarification needed",CHAT_EFFECT:"What the chat changed",CURRENT_REVIEW:"Current review",DECISION_CHANGE:"What changed between decisions",DESTINATION_SIMULATION:"Simulator result"};
 
@@ -31,21 +34,28 @@ export function mountConversationPanel(root,{client,selection,onActivate=()=>{},
   make("p","UNDERSTAND THE DECISION",root).className="eyebrow";
   make("h2","Ask Chronos");
   make("p","Explore the evidence behind a proposal. A chat message cannot approve a recovery or change your preferences.").className="hint";
-  const tools=make("div");tools.className="actions";
+  const tools=make("div");tools.className="actions chronos-chat-launch";
   const open=make("button","Open case conversation",tools);open.type="button";
-  const read=make("button","Read original conversation",tools);read.type="button";
-  const close=make("button","Close conversation view",tools);close.type="button";
+  const setup=make("details");setup.className="chronos-fold chronos-chat-setup";
+  make("summary","Conversation controls and reference",setup);
+  const setupTools=make("div",undefined,setup);setupTools.className="actions";
+  const read=make("button","Read original conversation",setupTools);read.type="button";
+  const close=make("button","Close conversation view",setupTools);close.type="button";
   const status=make("p");status.setAttribute("role","status");status.setAttribute("aria-live","polite");
-  const refs=make("p");refs.className="hint chronos-chat-refs";
-  make("p","Message history — scroll inside to read all replies and cited evidence.").className="hint";
+  const refs=make("p",undefined,setup);refs.className="hint chronos-chat-refs";
+  make("p","Message history — scroll inside to read all replies and cited evidence.",setup).className="hint";
   const transcript=make("div");transcript.className="chronos-chat-transcript";transcript.setAttribute("aria-label","Conversation transcript");
   transcript.setAttribute("role","region");transcript.setAttribute("tabindex","0");
   transcript.setAttribute("aria-description","Scrollable message history. Use the arrow keys to read earlier answers and Tab to reach cited evidence or the question field.");
+  const pending=make("div");pending.className="chronos-chat-pending";pending.hidden=true;pending.setAttribute("aria-hidden","true");
+  const pendingDots=make("span","•••",pending);pendingDots.className="chronos-chat-pending-dots";
+  const pendingText=make("span","Checking the case...",pending);
   const replyNotice=make("div");replyNotice.className="actions";
   const replyStatus=make("span",undefined,replyNotice);replyStatus.setAttribute("role","status");replyStatus.setAttribute("aria-live","polite");
   const latest=make("button","Show latest reply",replyNotice);latest.type="button";latest.hidden=true;
   const prompts=make("div");prompts.className="actions chronos-chat-prompts";
-  const starters=["Why was this decision made?","What happened to the shipment?","What is still uncertain?"].map(q=>{
+  const normalQuestions=["Why was this decision made?","What happened to the shipment?","What is still uncertain?"];
+  const starters=[...normalQuestions, ""].map(q=>{
     const b=make("button",q,prompts);b.type="button";return b;
   });
   const form=make("form");form.className="chronos-chat-composer";form.setAttribute("aria-label","Ask about this case");
@@ -55,20 +65,37 @@ export function mountConversationPanel(root,{client,selection,onActivate=()=>{},
   const hint=make("p","English · up to 2,048 UTF-8 bytes · six questions per conversation. Never include passwords or tokens.",form);
   hint.className="hint";hint.id="chronos-chat-help";
   const send=make("button","Ask Chronos",form);send.type="submit";
-  const count=make("p");count.className="hint";
+  const count=make("p",undefined,setup);count.className="hint";
+  const executionNotice=make("p",undefined,setup);executionNotice.className="chronos-provenance";
+  executionNotice.setAttribute("aria-label","Conversation execution mode");
+  const execution=()=>{try{return client.sessionExecution?.()??null;}catch{return null;}};
   let active=false,available=true,destroyed=false,controller;
   let lastConversation="",lastReply="",sourceNodes=[],summaryNodes=new Map(),latestQuestion=null,followPending=null,phase="IDLE";
   const atBottom=()=>Math.max(0,(transcript.scrollHeight??0)-(transcript.clientHeight??0)-(transcript.scrollTop??0))<=24;
   function clearNotice(){replyStatus.textContent="";latest.hidden=true;}
   function revealLatest(){
     if(!latestQuestion)return;
-    const target=latestQuestion.getBoundingClientRect?.(),history=transcript.getBoundingClientRect?.();
-    transcript.scrollTop=target&&history?Math.max(0,(transcript.scrollTop??0)+target.top-history.top):(transcript.scrollHeight??0);
+    transcript.scrollTop=transcript.scrollHeight??0;
     clearNotice();
   }
   function paint(v){
     if(destroyed)return;
+    const recorded=execution()?.mode==="RECORDED_FIXTURE";
+    executionNotice.textContent=recorded ? "Recorded question interpretation · current checked case records · 0 fresh inference calls. Choose one of the four supported questions; this mode does not interpret new wording or change preferences." :
+      execution()?.mode==="LIVE_MODEL" ? "Live model configured. Answers must still be checked against the cited records." :
+      "Question interpretation mode unverified by this server. No fresh inference is claimed.";
+    const questions=recorded?RECORDED_QUESTIONS:normalQuestions;
+    starters.forEach((b,i)=>{b.textContent=questions[i]??"";b.hidden=i>=questions.length;});
+    hint.textContent=recorded ? "Recorded fixture mode · choose a supported question exactly · six questions per conversation. No fresh inference or preference change." :
+      "English \u00b7 up to 2,048 UTF-8 bytes \u00b7 six questions. Enter sends; Shift+Enter adds a line. No passwords or tokens.";
     const busy=BUSY.has(v.phase),allowed=active&&available&&v.canSend;
+    root.setAttribute("data-chat-active",active?"true":"false");
+    root.setAttribute("data-chat-ready",v.phase==="READY"?"true":"false");
+    root.setAttribute("data-has-turns",v.view?.conversation?.turns?.length?"true":"false");
+    root.setAttribute("data-recorded",recorded?"true":"false");
+    if(active&&["PENDING","UNCERTAIN","ERROR","BLOCKED"].includes(v.phase))setup.open=true;
+    pending.hidden=!active||!available||!busy;
+    pendingText.textContent=v.phase==="SENDING"?"Checking the case and preparing an explanation...":"Reading case records...";
     const oldTop=transcript.scrollTop??0,oldOpen=sourceNodes.map(e=>e.open===true);
     const focusedTurn=[...summaryNodes].find(([,node])=>node===doc.activeElement)?.[0]??null;
     const sameConversation=Boolean(v.conversationId&&v.conversationId===lastConversation);
@@ -90,7 +117,8 @@ export function mountConversationPanel(root,{client,selection,onActivate=()=>{},
     if(packet){
       const turns=packet.conversation.turns;
       count.textContent=turns.length+" / 6 questions recorded"+(turns.length===6?". Conversation limit reached; existing answers remain readable.":"");
-      if(!turns.length)make("p","The case is open. Choose a question below or write your own.",transcript).className="hint";
+      if(!turns.length)make("p",recorded ? "The case is open in recorded fixture mode. Choose one of the four questions below." :
+        "The case is open. Choose a question below or write your own.",transcript).className="hint";
       for(const turn of turns){
         const question=make("article",undefined,transcript);question.className="chronos-chat-question";
         latestQuestion=question;
@@ -105,7 +133,8 @@ export function mountConversationPanel(root,{client,selection,onActivate=()=>{},
         }
         const response=turn.response;
         const topics=response.topics??[response.topic];
-        const origin=response.answer_origin !== "DETERMINISTIC_EVIDENCE" ? "Model interpretation · check the evidence" :
+        const origin=recorded ? "Recorded question interpretation · explanation from checked case records · 0 fresh inference calls" :
+          response.answer_origin !== "DETERMINISTIC_EVIDENCE" ? "Model interpretation · check the evidence" :
           topics.includes("PREFERENCE_CHANGE") ? "Model-interpreted preference · not applied" :
           topics.includes("CLARIFY") ? "Clarification needed · no decision or action" :
           "Explanation from checked case records · question interpreted by the model";
@@ -196,7 +225,7 @@ export function mountConversationPanel(root,{client,selection,onActivate=()=>{},
     catch {
       try {transcript.replaceChildren();} catch {transcript.textContent="";}
       clearNotice();followPending=null;lastConversation="";lastReply="";
-      refs.textContent="";input.value="";count.textContent="";
+      refs.textContent="";input.value="";count.textContent="";pending.hidden=true;
       for(const e of [open,read,close,input,send,...starters])e.disabled=true;
       status.textContent=CODES.PRESENTATION_FAILED;
       throw new Error("PRESENTATION_FAILED");
@@ -227,13 +256,24 @@ export function mountConversationPanel(root,{client,selection,onActivate=()=>{},
   listen(read,"click",async()=>{if(destroyed||read.disabled)return;activate();if(!destroyed)await controller.read();});
   listen(close,"click",()=>{if(destroyed||close.disabled)return;input.value="";controller.close();});
   starters.forEach(b=>listen(b,"click",()=>{if(destroyed||b.disabled)return;input.value=b.textContent;input.focus();}));
-  listen(form,"submit",async event=>{
+  const submitQuestion=async event=>{
     event.preventDefault();if(destroyed||!active||send.disabled)return;
     const question=input.value;
+    if(execution()?.mode==="RECORDED_FIXTURE"&&!RECORDED_QUESTIONS.includes(question)){
+      status.textContent="This recorded mode supports only the four questions shown above. Choose one exactly; no question was sent and no preference was changed.";return;
+    }
     if(!question.trim()||new TextEncoder().encode(question).length>2048||/[\u0000-\u0008\u000b-\u001f\ud800-\udfff]/u.test(question)){
       status.textContent="Enter a question within 2,048 UTF-8 bytes, without control characters.";return;
     }
     followPending=atBottom();clearNotice();input.value="";await controller.send(question);
+  };
+  listen(form,"submit",submitQuestion);
+  listen(input,"keydown",event=>{
+    if(event.key!=="Enter"||event.shiftKey||event.isComposing||event.keyCode===229)return;
+    event.preventDefault();
+    if(destroyed||event.repeat||!active||input.disabled||send.disabled)return;
+    if(typeof form.requestSubmit==="function")form.requestSubmit();
+    else return submitQuestion({preventDefault(){}});
   });
   render(controller.snapshot());
   return Object.freeze({

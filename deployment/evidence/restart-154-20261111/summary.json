@@ -1,0 +1,199 @@
+{
+  "schema": "chronos.saved-restart-evidence.v1",
+  "observed_date_utc": "2026-11-11",
+  "prepared_at_utc": "2026-11-12T22:01:30.816677+00:00",
+  "engine": "InterSystems IRIS AI Hub Community 2026.3.0AI build 154U",
+  "base_release": "1.0.2",
+  "scope": "Historical synthetic-destination run using a private instrumented copy of release 1.0.2; this packet verifies retained records only.",
+  "decisions": {
+    "economy": {
+      "action": "RETRY_A",
+      "interpreted_preference": "CHEAPEST_ON_TIME",
+      "native_trace": {
+        "aiHubSessionId": "1",
+        "interopSessionId": "3"
+      },
+      "attribution": {
+        "interpretationOrigin": "MODEL",
+        "selectionOrigin": "DETERMINISTIC_CODE"
+      }
+    },
+    "queue_inventory": {
+      "action": "FAILOVER_B",
+      "interpreted_preference": "CHEAPEST_ON_TIME",
+      "native_trace": {
+        "aiHubSessionId": "2",
+        "interopSessionId": "21"
+      },
+      "attribution": {
+        "interpretationOrigin": "MODEL",
+        "selectionOrigin": "DETERMINISTIC_CODE"
+      }
+    }
+  },
+  "before_cut": {
+    "iris": {
+      "operationId": "preview-op-prep-E1E66995-DD69-11F1-81CE-BE894753DF7D",
+      "attemptId": "attempt-1",
+      "admissionId": "admission-1",
+      "target": "B",
+      "state": "IN_FLIGHT",
+      "reference": ""
+    },
+    "destination_recovery": {
+      "operationId": "preview-op-prep-E1E66995-DD69-11F1-81CE-BE894753DF7D",
+      "attemptId": "attempt-1",
+      "target": "B",
+      "state": "ACCEPTED",
+      "submits": 1,
+      "attempts": 1
+    },
+    "barrier": {
+      "operationId": "preview-op-prep-E1E66995-DD69-11F1-81CE-BE894753DF7D",
+      "attemptId": "attempt-1",
+      "admissionId": "admission-1",
+      "timeout_seconds": 45,
+      "start_utc": 1794358227.1920547,
+      "receipt": {
+        "operationId": "preview-op-prep-E1E66995-DD69-11F1-81CE-BE894753DF7D",
+        "attemptId": "attempt-1",
+        "target": "B",
+        "status": "ACCEPTED",
+        "reference": "B-preview-op-prep-E1E66995-DD69-11F1-81CE-BE894753DF7D",
+        "receiptId": "r-e83bcdda211c75871dbee101da082a51182851e1374006058d816fcfc140504f"
+      }
+    }
+  },
+  "cut": {
+    "container_id": "2f8455102ea82da53e11c34791ca5289318ee8dfddc7413a55f5c5e2f3f73051",
+    "started_at_before_cut": "2026-11-11T00:48:28.307196928Z",
+    "StartedAt": "2026-11-11T00:48:28.307196928Z",
+    "FinishedAt": "2026-11-11T00:50:27.762177403Z",
+    "Running": false,
+    "ExitCode": 137,
+    "OOMKilled": false
+  },
+  "after_restart_before_recovery": {
+    "operationId": "preview-op-prep-E1E66995-DD69-11F1-81CE-BE894753DF7D",
+    "attemptId": "attempt-1",
+    "admissionId": "admission-1",
+    "target": "B",
+    "state": "IN_FLIGHT",
+    "reference": ""
+  },
+  "resume": {
+    "status": "RESUME_VERIFIED",
+    "previous_generation": "A50908B5-DD69-11F1-81CE-BE894753DF7D",
+    "current_generation": "EF15D9F4-DD69-11F1-A669-5679A9CA87AD",
+    "recorded_generation": "EF15D9F4-DD69-11F1-A669-5679A9CA87AD",
+    "runtime_ready": true,
+    "recovery_phase": "VERIFIED",
+    "request_state": "VERIFIED",
+    "model_tested": false
+  },
+  "pre_resume_inspection": {
+    "status": "CRASH_RECOVERY_AVAILABLE",
+    "current_generation": "A50908B5-DD69-11F1-81CE-BE894753DF7D",
+    "production_state": 4
+  },
+  "recovered_operation": {
+    "operationId": "preview-op-prep-E1E66995-DD69-11F1-81CE-BE894753DF7D",
+    "attemptId": "attempt-1",
+    "admissionId": "admission-1",
+    "target": "B",
+    "state": "ACCEPTED",
+    "reference": "B-preview-op-prep-E1E66995-DD69-11F1-81CE-BE894753DF7D",
+    "lastReceiptId": "r-e83bcdda211c75871dbee101da082a51182851e1374006058d816fcfc140504f"
+  },
+  "operator_readback": {
+    "operationId": "preview-op-prep-E1E66995-DD69-11F1-81CE-BE894753DF7D",
+    "attemptId": "attempt-1",
+    "state": "ACCEPTED",
+    "reference": "B-preview-op-prep-E1E66995-DD69-11F1-81CE-BE894753DF7D",
+    "quarantined": false,
+    "dispatchGranted": false
+  },
+  "destination_final": {
+    "accepted": {
+      "operationId": "preview-op-prep-E1E66995-DD69-11F1-81CE-BE894753DF7D",
+      "target": "B",
+      "attemptId": "attempt-1",
+      "state": "ACCEPTED",
+      "submits": 1,
+      "attempts": 1
+    },
+    "rawCalls": [
+      {
+        "operationId": "preview-op-prep-E1E66995-DD69-11F1-81CE-BE894753DF7D",
+        "attemptId": "attempt-1",
+        "admissionId": "admission-1"
+      }
+    ]
+  },
+  "raw_submit_log": [
+    {
+      "operationId": "preview-op-prep-E1E66995-DD69-11F1-81CE-BE894753DF7D",
+      "attemptId": "attempt-1",
+      "admissionId": "admission-1"
+    }
+  ],
+  "hold": {
+    "deterministic_code": "ACCEPTANCE_UNRESOLVED",
+    "dispatch_authorized": false,
+    "inference_may_have_run": false,
+    "recovery_submissions": 0
+  },
+  "permission_checks": {
+    "hold": {
+      "code": "DECISION_NOT_ACTIONABLE"
+    },
+    "reader": {
+      "code": "PERMISSION_DENIED"
+    }
+  },
+  "closure": {
+    "access": {
+      "reader": "disabled",
+      "operator": "disabled",
+      "route": "disabled"
+    },
+    "services": {
+      "guard": {
+        "running": false,
+        "exit": 0,
+        "oom": false
+      },
+      "model": {
+        "running": false,
+        "exit": 0,
+        "oom": false
+      },
+      "iris": {
+        "running": false,
+        "exit": 0,
+        "oom": false
+      }
+    }
+  },
+  "source_sha256": {
+    "verified-journey.json": "c4931b1695be29b69c4d4944f7b03bca0898373dfa24a6a381c4e21f0a12e3dd",
+    "evidence-retry/before-cut.json": "82a511ab0da3c62abf1062a1a1d7bc7c4577c01371816487598ba08b673a86fe",
+    "evidence-retry/crash.json": "3532948b08e2546e1a031beba6eb143f99bf314721396539fee67d7ded6ee868",
+    "evidence-retry/recovered-operation.json": "7cf7bc150a9ea85db1f5d3aaf886691176253d23506071977b288b30b418fd5c",
+    "evidence-retry/restart-before-recovery.json": "eb2907ce35dd36e9588b45c6a9a9e1379f7dfb7f1400c23da11ef4ce2e6e938c",
+    "evidence-retry/destination-final.json": "438847b43436fc25759b698212390a4f21072a7b6ad220d20e89ef5eab11c5d3",
+    "evidence-retry/native-recovery.json": "46f3713c65f10b1d08d9a0c2d491c3b3358c179f0023d3725173869f00ece4c3",
+    "evidence-retry/resume-inspection.json": "1c94a1c4a1c6217b8e3346be1bd988856937bae5598c8b9c91a91ff28b5b2086",
+    "evidence-retry/operator-readback.json": "eff00aaae5d60c0dff338c6dd223e5d5a297d7af0cb56ebebf3e0764d89aa784",
+    "stage/data/jury-challenge/submit-calls.jsonl": "d5508896894087fc442919af83c3192731895479ffb0268f89b00a51c05f9f6a",
+    "support/challenge_fault.py": "20a65fde9458e26e4e57765aeeadb1d9e7ab34815f943368a0a0852a9b7f145c",
+    "evidence-retry/detail-economy.json": "a7cbc66f0eabe2f388ba3665fe6bafc8ed30a9e9a76dccb0e61483cbb3903f32",
+    "evidence-retry/detail-queue_inventory.json": "565c3564562ad300e3bc81a82b80d1d29540adab88f6bf917cc5046a771d4a7d",
+    "evidence-retry/propose-uncertain.json": "50a8b3e2ebe6fc0e5d69ac38baa493a3e9573833aa40f8b12fe126a2c5d6c716",
+    "evidence-retry/hold-denied.json": "38862401d32420dad60a70a378f16531f0fc6c34540ddfb2efeb798f64c324c9",
+    "evidence-retry/reader-denied.json": "e9932495b6fb6b2df4ebbc31c91c27cab90aa7587b070e67c84d9bdaa025114b",
+    "evidence-retry/access-closed.json": "7a8ec184d503c1c84efcabb20383ad6782204a9a7c5e8e8d24249de48fff0988",
+    "evidence-retry/final-container-states.json": "2af5621e22caee700560fdf53614eff9db4fc39dfdb885880b12d231a7fb1498"
+  },
+  "privacy": "Allowlisted fields only: local paths, usernames, actor hashes, namespace, deployment binding, environment and authentication fields omitted. Operation, attempt, admission, receipt and generation IDs are synthetic correlation values."
+}

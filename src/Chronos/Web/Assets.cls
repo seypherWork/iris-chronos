@@ -8,7 +8,7 @@ ClassMethod Mime(name As %String) As %String
 {
     If name="index.html" Return "text/html"
     If name="screen.css" Return "text/css"
-    Set scripts=$ListBuild("boot.mjs","client.mjs","consent-controller.mjs","consent-panel.mjs","consent.mjs","controller.mjs","conversation-controller.mjs","conversation-panel.mjs","conversation-v2.mjs","detail.mjs","preparation-references.mjs","presentation.mjs","references.mjs","render.mjs","screen.mjs","session-references.mjs")
+    Set scripts=$ListBuild("boot.mjs","client.mjs","consent-controller.mjs","consent-panel.mjs","consent.mjs","controller.mjs","conversation-controller.mjs","conversation-panel.mjs","conversation-v2.mjs","detail.mjs","preparation-references.mjs","presentation.mjs","references.mjs","render.mjs","screen.mjs","session-references.mjs","workflow-controller.mjs","workflow-panel.mjs")
     If $ListFind(scripts,name) Return "text/javascript"
     Return ""
 }

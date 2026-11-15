@@ -30,6 +30,21 @@ def status(ident, *, runtime=RUNTIME):
         binding = observed["plan_sha256"]
         now = time.time_ns() // 1000
         current = ledger.policy.created_at_us <= now < ledger.policy.expires_at_us
+    elif names == {"fixture-provider"}:
+        # Embedded Python is shared across namespaces. A subprocess prevents
+        # another installation's cached package from defining this bank/profile.
+        import json, re, subprocess
+        if type(ident) is not str or re.fullmatch(r'[a-f0-9]{32}', ident) is None:
+            raise ValueError("INVALID_DEPLOYMENT_ID")
+        result = subprocess.run(['/usr/bin/python3', '-B', str(HERE/'replay_provider.py'),
+            'status', '--deployment-id', ident, '--contract', 'e1', '--runtime', str(root)],
+            capture_output=True, timeout=10, check=False)
+        if result.returncode != 0 or len(result.stdout) > 16384:
+            raise ValueError("REPLAY_PROVIDER_UNAVAILABLE")
+        observed = json.loads(result.stdout)
+        profile, allowance = observed["profile"], observed["allowance"]
+        binding = observed["binding_sha256"]
+        current = None
     else:
         raise ValueError("EXACTLY_ONE_OWNED_PROVIDER_REQUIRED")
     return {"schema_version":"chronos.provider-state.v1", "status":"CONFIGURED_NOT_PROBED",

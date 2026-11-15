@@ -33,15 +33,32 @@ class Profile:
     version: int = 1
     reasoning_effort: str = 'none'
     response_contract: str = 'chronos.agent-proposal.v2'
+    replay_corpus_sha256: str | None = None
+    replay_fixture_sha256: str | None = None
 
     def __post_init__(self):
         if (type(self.version) is not int or self.version not in (1,2,3,4,5,6)
-                or type(self.reasoning_effort) is not str or self.reasoning_effort not in ('none','low','medium')
+                or type(self.reasoning_effort) is not str or self.reasoning_effort not in ('none','low','medium','on')
                 or (self.version==1 and self.reasoning_effort!='none')
                 or type(self.response_contract) is not str
                 or self.response_contract != ({3:'chronos.preference-extraction.v1',4:'chronos.case-conversation.v1',5:'chronos.case-explanation-plan.v1',6:'chronos.case-explanation-plan.v2'}.get(self.version,'chronos.agent-proposal.v2'))
-                or (self.version in (4,5,6) and self.provider!='ollama')):
+                or (self.version in (4,5,6) and self.provider not in ('ollama','recorded-fixture'))):
             raise DeploymentError('INVALID_REASONING_PROFILE')
+        # Boolean thinking is an explicit E1/Ollama pilot, not a new meaning for
+        # historical named levels, cloud requests or conversation contracts.
+        if self.reasoning_effort=='on' and not (
+                self.version==3 and self.provider=='ollama'
+                and self.response_contract=='chronos.preference-extraction.v1'):
+            raise DeploymentError('BOOLEAN_THINKING_E1_OLLAMA_ONLY')
+        if self.provider=='recorded-fixture':
+            if (self.version not in (3,6) or self.model!='chronos-recorded-fixture-v1'
+                    or self.local_port is not None or self.reasoning_effort!='none'
+                    or any(type(v) is not str or re.fullmatch(r'[a-f0-9]{64}',v) is None
+                           for v in (self.replay_corpus_sha256,self.replay_fixture_sha256))):
+                raise DeploymentError('INVALID_RECORDED_FIXTURE_PROFILE')
+        elif (self.replay_corpus_sha256 is not None or self.replay_fixture_sha256 is not None
+              or self.model=='chronos-recorded-fixture-v1'):
+            raise DeploymentError('RECORDED_PROFILE_FIELDS_FORBIDDEN')
 
     @classmethod
     def parse(cls,raw):
@@ -62,9 +79,10 @@ class Profile:
         if type(version) is not int or version not in (1,2,3,4,5,6):raise DeploymentError('INVALID_PROFILE_VERSION')
         if version>=2:fields.add('reasoning_effort')
         if version>=3:fields.add('response_contract')
+        if data.get('provider')=='recorded-fixture':fields.update(('replay_corpus_sha256','replay_fixture_sha256'))
         if set(data)!=fields:raise DeploymentError('INVALID_PROFILE_FIELDS')
         if type(data['deployment_id']) is not str or not re.fullmatch(r'[a-f0-9]{32}',data['deployment_id']):raise DeploymentError('INVALID_DEPLOYMENT_ID')
-        if data['provider'] not in ('ollama','openai-chat-json'):raise DeploymentError('UNSUPPORTED_PROVIDER')
+        if data['provider'] not in ('ollama','openai-chat-json','recorded-fixture'):raise DeploymentError('UNSUPPORTED_PROVIDER')
         if type(data['model']) is not str or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}',data['model']):raise DeploymentError('INVALID_MODEL')
         if type(data['schema_sha256']) is not str or not re.fullmatch(r'[a-f0-9]{64}',data['schema_sha256']):raise DeploymentError('INVALID_SCHEMA_DIGEST')
         if type(data['request_limit']) is not int or not 1<=data['request_limit']<=1000:raise DeploymentError('INVALID_REQUEST_LIMIT')
@@ -80,6 +98,9 @@ class Profile:
                 'request_limit':self.request_limit,'local_port':self.local_port}
         if self.version>=2:value['reasoning_effort']=self.reasoning_effort
         if self.version>=3:value['response_contract']=self.response_contract
+        if self.provider=='recorded-fixture':
+            value['replay_corpus_sha256']=self.replay_corpus_sha256
+            value['replay_fixture_sha256']=self.replay_fixture_sha256
         return value
 
     @property
@@ -87,7 +108,10 @@ class Profile:
 
     @property
     def endpoint(self):
-        return f'http://127.0.0.1:{self.local_port}/v1/chat/completions' if self.provider=='ollama' else 'https://api.openai.com/v1/chat/completions'
+        if self.provider=='recorded-fixture':raise DeploymentError('RECORDED_FIXTURE_HAS_NO_UPSTREAM')
+        if self.provider=='ollama':return f'http://127.0.0.1:{self.local_port}/v1/chat/completions'
+        if self.provider=='openai-chat-json':return 'https://api.openai.com/v1/chat/completions'
+        raise DeploymentError('UNSUPPORTED_PROVIDER')
 
 
 class Allowance:

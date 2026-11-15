@@ -14,6 +14,7 @@ XData UrlMap
   <Route Url="/approval" Method="POST" Call="Approval" />
   <Route Url="/decision" Method="POST" Call="Decision" />
   <Route Url="/conversation" Method="POST" Call="Conversation" />
+  <Route Url="/workflow" Method="POST" Call="Workflow" />
   <Route Url="/logout" Method="POST" Call="Logout" />
   <Route Url="/" Method="GET" Call="Index" />
   <Route Url="/:asset" Method="GET" Call="Asset" />
@@ -201,11 +202,39 @@ ClassMethod Session() As %Status
         Set chatStatus=##class(Chronos.Conversation.Context).Principal(.chatIdentity)
         If $$$ISOK(chatStatus) {
             Set canConverse=(chatIdentity.actor=principal.actor)&&(chatIdentity.sessionBinding=principal.sessionBinding)&&##class(Chronos.Conversation.Model).Available()
+            If canConverse {
+                Set chatStatus=##class(Chronos.Conversation.Model).Current(.chatConfig)
+                Set execution=..Execution()
+                Set canConverse=$$$ISOK(chatStatus)&&(execution.mode'="NOT_CONFIGURED")&&(chatConfig.%Get("executionMode","LIVE_MODEL")=execution.mode)
+                If canConverse,execution.mode="RECORDED_FIXTURE" Set canConverse=(chatConfig.%Get("replayCorpusSha256")=execution.replayCorpusSha256)&&(chatConfig.%Get("replayFixtureSha256")=execution.replayFixtureSha256)
+            }
         }
     }
     Do result.%Set("canConverse",canConverse,"boolean")
+    If canRead Set result.execution=..Execution()
     If '..CanEnd($Username,%session.Username,%session.EndSession,%session.Get("ChronosOwner"),%session.Get("ChronosBinding"),%session.Get("ChronosCSRFBinding"),csrf) Return ..Reply({"code":"SESSION_UNAVAILABLE"},"403 Forbidden")
     Return ..Reply(result)
+}
+
+/// Attribution of the installed immutable provider. This is not a readiness proof.
+ClassMethod Execution() As %DynamicObject [ Private ]
+{
+    Set result={"mode":"NOT_CONFIGURED","model":null,"replayCorpusSha256":null,"replayFixtureSha256":null,"supportedQuestions":[]}
+    Try {
+        If '$Data(^ChronosAI18("config")) Return result
+        Set cfg=##class(%DynamicObject).%FromJSON(^ChronosAI18("config"))
+        Set mode=cfg.%Get("executionMode","LIVE_MODEL")
+        Set sc=##class(Chronos.Agent.Model).CheckExecution(mode,cfg.model,cfg.%Get("profileSha256"),cfg.%Get("reasoningEffort","none"),cfg.%Get("replayCorpusSha256"),cfg.%Get("replayFixtureSha256"))
+        If $$$ISERR(sc) Return result
+        Set result.mode=mode,result.model=cfg.model
+        If mode="RECORDED_FIXTURE" {
+            Set result.replayCorpusSha256=cfg.replayCorpusSha256,result.replayFixtureSha256=cfg.replayFixtureSha256
+            Set result.supportedQuestions=["Why was this option recommended?","What is the current operation status?","Does acceptance prove physical delivery?","What can I do next?"]
+        }
+    } Catch ex {
+        Set result={"mode":"NOT_CONFIGURED","model":null,"replayCorpusSha256":null,"replayFixtureSha256":null,"supportedQuestions":[]}
+    }
+    Return result
 }
 
 ClassMethod Approval() As %Status
@@ -236,6 +265,30 @@ ClassMethod Decision() As %Status
     If 'checked.allowed Return ..Reply({"code":(checked.code)},"400 Bad Request")
     Set sc=##class(Chronos.Approval.Entry).Call(checked.command,checked.args.decisionId,.result)
     If $$$ISERR(sc) Return ..Reply({"code":"DECISION_RESULT_UNAVAILABLE","readbackRequired":true},"503 Service Unavailable")
+    Return ..Reply(result)
+}
+
+/// Optional native Workflow clarification, never an alternative send endpoint.
+/// HTTP/session policy and the exact body projection precede every dispatch.
+ClassMethod Workflow() As %Status
+{
+    Do ..Context(.principal,.origin,.csrf,.code)
+    If code'="OK" Return ..Reply({"code":(code)},"403 Forbidden")
+    Do ..Body(.body,.code)
+    If code'="OK" Return ..Reply({"code":(code)},$Select(code="REQUEST_TOO_LARGE":"413 Payload Too Large",1:"400 Bad Request"))
+    // Reuse only header/origin/session validation with an inert internal READ.
+    // No authority controller is invoked by this constant.
+    Do ..Validate({"command":"READ","id":"workflow"}.%ToJSON(),origin,csrf,.headers)
+    If 'headers.allowed Return ..Reply({"code":(headers.code)},"400 Bad Request")
+    Try {
+        // Preserve CSP's body bytes over the Embedded Python boundary, as in
+        // the conversation route. Decode UTF-8 strictly before parsing JSON.
+        Set bodyHex=$System.Encryption.ToHex(body)
+        Set checked=##class(%DynamicObject).%FromJSON(##class(Chronos.Workflow.Policy).Parse(bodyHex,"UTF8_HEX"))
+    } Catch ex { Set checked={"allowed":false,"code":"INVALID_WORKFLOW_REQUEST"} }
+    If 'checked.%Get("allowed") Return ..Reply({"code":(checked.%Get("code","INVALID_WORKFLOW_REQUEST"))},"400 Bad Request")
+    Set sc=##class(Chronos.Workflow.API).Call(checked.command,checked.args,.result)
+    If $$$ISERR(sc) Return ..Reply({"code":"WORKFLOW_RESULT_UNAVAILABLE","readbackRequired":true,"dispatch_authorized":false},"503 Service Unavailable")
     Return ..Reply(result)
 }
 
