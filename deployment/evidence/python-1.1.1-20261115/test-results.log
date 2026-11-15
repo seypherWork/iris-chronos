@@ -1,0 +1,519 @@
+===== collection | exit=0 | elapsed=0.796s =====
+Collected 324 tests; loader errors: 0
+
+===== agent.test_clarification | exit=0 | elapsed=0.313s =====
+test_arbitrary_json_and_authority_fields_are_not_accepted (agent.test_clarification.ClarificationTests.test_arbitrary_json_and_authority_fields_are_not_accepted) ... ok
+test_binding_digest_is_independent_of_dictionary_insertion_order (agent.test_clarification.ClarificationTests.test_binding_digest_is_independent_of_dictionary_insertion_order) ... ok
+test_binding_rejects_boolean_version_invalid_hash_and_unknown_fields (agent.test_clarification.ClarificationTests.test_binding_rejects_boolean_version_invalid_hash_and_unknown_fields) ... ok
+test_boolean_times_versions_and_completion_flags_rejected (agent.test_clarification.ClarificationTests.test_boolean_times_versions_and_completion_flags_rejected) ... ok
+test_both_allowed_preferences_remain_business_data (agent.test_clarification.ClarificationTests.test_both_allowed_preferences_remain_business_data) ... ok
+test_changed_current_material_binding_rejected (agent.test_clarification.ClarificationTests.test_changed_current_material_binding_rejected) ... ok
+test_completion_actor_task_role_time_and_clarification_must_match (agent.test_clarification.ClarificationTests.test_completion_actor_task_role_time_and_clarification_must_match) ... ok
+test_corrupt_stored_binding_rejected_even_if_current_matches_it (agent.test_clarification.ClarificationTests.test_corrupt_stored_binding_rejected_even_if_current_matches_it) ... ok
+test_duplicate_prior_messages_and_source_alias_rejected (agent.test_clarification.ClarificationTests.test_duplicate_prior_messages_and_source_alias_rejected) ... ok
+test_eighth_message_allowed_ninth_rejected (agent.test_clarification.ClarificationTests.test_eighth_message_allowed_ninth_rejected) ... ok
+test_existing_native_identifiers_keep_their_128_character_alphabet (agent.test_clarification.ClarificationTests.test_existing_native_identifiers_keep_their_128_character_alphabet) ... ok
+test_expiry_is_exclusive_and_never_renewed (agent.test_clarification.ClarificationTests.test_expiry_is_exclusive_and_never_renewed) ... ok
+test_future_completion_is_not_usable (agent.test_clarification.ClarificationTests.test_future_completion_is_not_usable) ... ok
+test_invalid_notes_rejected_without_echoing_them (agent.test_clarification.ClarificationTests.test_invalid_notes_rejected_without_echoing_them) ... ok
+test_message_matches_existing_review_projection_and_time_view (agent.test_clarification.ClarificationTests.test_message_matches_existing_review_projection_and_time_view) ... ok
+test_never_mutates_record_binding_completion_or_existing_history (agent.test_clarification.ClarificationTests.test_never_mutates_record_binding_completion_or_existing_history) ... ok
+test_nonresolved_states_never_project (agent.test_clarification.ClarificationTests.test_nonresolved_states_never_project) ... ok
+test_note_stays_quoted_untrusted_data_never_changes_authority (agent.test_clarification.ClarificationTests.test_note_stays_quoted_untrusted_data_never_changes_authority) ... ok
+test_only_real_completed_clarification_action_is_consistent (agent.test_clarification.ClarificationTests.test_only_real_completed_clarification_action_is_consistent) ... ok
+test_projects_native_time_and_provenance_without_grants (agent.test_clarification.ClarificationTests.test_projects_native_time_and_provenance_without_grants) ... ok
+test_record_cannot_extend_bound_policy_expiry (agent.test_clarification.ClarificationTests.test_record_cannot_extend_bound_policy_expiry) ... ok
+test_reprojection_is_idempotent_without_claiming_durable_execution (agent.test_clarification.ClarificationTests.test_reprojection_is_idempotent_without_claiming_durable_execution) ... ok
+test_same_source_with_different_text_is_not_silently_replaced (agent.test_clarification.ClarificationTests.test_same_source_with_different_text_is_not_silently_replaced) ... ok
+test_sensitive_note_rejected (agent.test_clarification.ClarificationTests.test_sensitive_note_rejected) ... ok
+test_source_alias_is_rejected_before_or_after_existing_projection (agent.test_clarification.ClarificationTests.test_source_alias_is_rejected_before_or_after_existing_projection) ... ok
+test_source_must_be_eligible_hold_not_actionable_or_structured_policy (agent.test_clarification.ClarificationTests.test_source_must_be_eligible_hold_not_actionable_or_structured_policy) ... ok
+
+----------------------------------------------------------------------
+Ran 26 tests in 0.025s
+
+OK
+
+===== agent.test_clarification_contract | exit=0 | elapsed=0.390s =====
+test_ambiguous_and_incomplete_sources_only_not_conflict (agent.test_clarification_contract.ClarificationContractTests.test_ambiguous_and_incomplete_sources_only_not_conflict) ... ok
+test_changed_cost_quarantine_or_policy_never_becomes_ready (agent.test_clarification_contract.ClarificationContractTests.test_changed_cost_quarantine_or_policy_never_becomes_ready) ... ok
+test_current_effect_or_operation_state_never_becomes_ready (agent.test_clarification_contract.ClarificationContractTests.test_current_effect_or_operation_state_never_becomes_ready) ... ok
+test_effect_snapshot_nonce_renewal_is_not_a_new_human_window (agent.test_clarification_contract.ClarificationContractTests.test_effect_snapshot_nonce_renewal_is_not_a_new_human_window) ... ok
+test_eighth_message_allowed_ninth_rejected (agent.test_clarification_contract.ClarificationContractTests.test_eighth_message_allowed_ninth_rejected) ... ok
+test_existing_projector_rejects_nonresolved_or_wrong_native_completion (agent.test_clarification_contract.ClarificationContractTests.test_existing_projector_rejects_nonresolved_or_wrong_native_completion) ... ok
+test_finish_requires_explicit_fresh_source_and_never_falls_back (agent.test_clarification_contract.ClarificationContractTests.test_finish_requires_explicit_fresh_source_and_never_falls_back) ... ok
+test_fresh_source_cannot_silently_change_note_preference_or_task (agent.test_clarification_contract.ClarificationContractTests.test_fresh_source_cannot_silently_change_note_preference_or_task) ... ok
+test_human_absolute_expiry_bounds_inference_and_review (agent.test_clarification_contract.ClarificationContractTests.test_human_absolute_expiry_bounds_inference_and_review) ... ok
+test_human_wait_does_not_reuse_the_old_thirty_second_window (agent.test_clarification_contract.ClarificationContractTests.test_human_wait_does_not_reuse_the_old_thirty_second_window) ... ok
+test_human_window_cannot_exceed_ten_minutes (agent.test_clarification_contract.ClarificationContractTests.test_human_window_cannot_exceed_ten_minutes) ... ok
+test_inputs_remain_unchanged_after_prepare_finish_and_review (agent.test_clarification_contract.ClarificationContractTests.test_inputs_remain_unchanged_after_prepare_finish_and_review) ... ok
+test_legacy_inference_cannot_inject_a_human_source_only_at_finish (agent.test_clarification_contract.ClarificationContractTests.test_legacy_inference_cannot_inject_a_human_source_only_at_finish) ... ok
+test_legacy_no_source_matches_preserved_prechange_canonical_bytes (agent.test_clarification_contract.ClarificationContractTests.test_legacy_no_source_matches_preserved_prechange_canonical_bytes) ... ok
+test_observation_only_renewal_preserves_actual_authority_correlation (agent.test_clarification_contract.ClarificationContractTests.test_observation_only_renewal_preserves_actual_authority_correlation) ... ok
+test_prepare_binds_source_to_actual_authority_not_only_its_internal_hash (agent.test_clarification_contract.ClarificationContractTests.test_prepare_binds_source_to_actual_authority_not_only_its_internal_hash) ... ok
+test_prepare_reference_is_detached_from_mutable_caller_data (agent.test_clarification_contract.ClarificationContractTests.test_prepare_reference_is_detached_from_mutable_caller_data) ... ok
+test_provider_changes_are_not_hidden_by_the_human_overlay (agent.test_clarification_contract.ClarificationContractTests.test_provider_changes_are_not_hidden_by_the_human_overlay) ... ok
+test_provider_identity_facts_and_business_expiry_are_checked (agent.test_clarification_contract.ClarificationContractTests.test_provider_identity_facts_and_business_expiry_are_checked) ... ok
+test_provider_ids_and_original_observation_are_untouched (agent.test_clarification_contract.ClarificationContractTests.test_provider_ids_and_original_observation_are_untouched) ... ok
+test_provider_observation_must_not_precede_the_human_completion (agent.test_clarification_contract.ClarificationContractTests.test_provider_observation_must_not_precede_the_human_completion) ... ok
+test_review_accepts_only_observation_nonce_renewal_and_binds_actual_preview_snapshot (agent.test_clarification_contract.ClarificationContractTests.test_review_accepts_only_observation_nonce_renewal_and_binds_actual_preview_snapshot) ... ok
+test_review_expiry_is_absolute_and_cannot_be_renewed_by_source_read (agent.test_clarification_contract.ClarificationContractTests.test_review_expiry_is_absolute_and_cannot_be_renewed_by_source_read) ... ok
+test_review_rejects_changed_native_completion_or_context_generation (agent.test_clarification_contract.ClarificationContractTests.test_review_rejects_changed_native_completion_or_context_generation) ... ok
+test_review_revalidates_source_and_retains_separate_human_approval (agent.test_clarification_contract.ClarificationContractTests.test_review_revalidates_source_and_retains_separate_human_approval) ... ok
+test_source_types_extra_fields_sensitive_note_and_future_resolution_fail_closed (agent.test_clarification_contract.ClarificationContractTests.test_source_types_extra_fields_sensitive_note_and_future_resolution_fail_closed) ... ok
+test_structured_policy_cannot_be_replaced_by_a_clarification (agent.test_clarification_contract.ClarificationContractTests.test_structured_policy_cannot_be_replaced_by_a_clarification) ... ok
+
+----------------------------------------------------------------------
+Ran 27 tests in 0.072s
+
+OK
+
+===== agent.test_clarification_projection | exit=0 | elapsed=0.328s =====
+test_changed_private_clarification_is_not_the_same_decision (agent.test_clarification_projection.ClarificationProjectionTests.test_changed_private_clarification_is_not_the_same_decision) ... ok
+test_clarified_detail_matches_the_actual_review_binding (agent.test_clarification_projection.ClarificationProjectionTests.test_clarified_detail_matches_the_actual_review_binding) ... ok
+test_malformed_present_binding_is_not_a_legacy_decision (agent.test_clarification_projection.ClarificationProjectionTests.test_malformed_present_binding_is_not_a_legacy_decision) ... ok
+test_unclarified_historical_digest_remains_byte_compatible (agent.test_clarification_projection.ClarificationProjectionTests.test_unclarified_historical_digest_remains_byte_compatible) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.028s
+
+OK
+
+===== agent.test_clarified_chat | exit=0 | elapsed=0.515s =====
+test_complete_open_catalog_and_c2_context_accept_the_limited_read (agent.test_clarified_chat.ClarifiedChatTests.test_complete_open_catalog_and_c2_context_accept_the_limited_read) ... ok
+test_missing_fresh_clarification_is_explained_without_approval (agent.test_clarified_chat.ClarifiedChatTests.test_missing_fresh_clarification_is_explained_without_approval) ... ok
+test_unknown_review_errors_are_still_rejected (agent.test_clarified_chat.ClarifiedChatTests.test_unknown_review_errors_are_still_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.041s
+
+OK
+
+===== test_crash_challenge | exit=0 | elapsed=23.453s =====
+test_only_local_endpoint_and_exact_sanitized_inspection_fields (test_crash_challenge.DockerBoundaryTests.test_only_local_endpoint_and_exact_sanitized_inspection_fields) ... ok
+test_arm_is_exclusive_even_when_container_result_is_uncertain (test_crash_challenge.ExecutorTests.test_arm_is_exclusive_even_when_container_result_is_uncertain) ... ok
+test_changed_cut_record_is_rejected_before_restart (test_crash_challenge.ExecutorTests.test_changed_cut_record_is_rejected_before_restart) ... ok
+test_derived_source_is_explicit_and_original_preserved (test_crash_challenge.ExecutorTests.test_derived_source_is_explicit_and_original_preserved) ... ok
+test_exact_current_authorization_is_required_before_any_mutation (test_crash_challenge.ExecutorTests.test_exact_current_authorization_is_required_before_any_mutation) ... ok
+test_foreign_owner_and_changed_bundle_never_trigger_cut (test_crash_challenge.ExecutorTests.test_foreign_owner_and_changed_bundle_never_trigger_cut) ... ok
+test_generation_change_during_last_read_never_cuts (test_crash_challenge.ExecutorTests.test_generation_change_during_last_read_never_cuts) ... ok
+test_missing_marker_does_not_cut_or_initiate_approval (test_crash_challenge.ExecutorTests.test_missing_marker_does_not_cut_or_initiate_approval) ... ok
+test_offline_finalizer_will_not_promote_simulation_to_native_proof (test_crash_challenge.ExecutorTests.test_offline_finalizer_will_not_promote_simulation_to_native_proof) ... ok
+test_readonly_hook_tamper_is_detected_before_process_calls (test_crash_challenge.ExecutorTests.test_readonly_hook_tamper_is_detected_before_process_calls) ... ok
+test_recover_accepts_only_terminal_destination_advance (test_crash_challenge.ExecutorTests.test_recover_accepts_only_terminal_destination_advance) ... ok
+test_synthetic_full_sequence_cuts_once_and_restarts_same_container (test_crash_challenge.ExecutorTests.test_synthetic_full_sequence_cuts_once_and_restarts_same_container) ... ok
+test_uncertain_cut_is_not_issued_again (test_crash_challenge.ExecutorTests.test_uncertain_cut_is_not_issued_again) ... ok
+test_exact_hook_claims_once_before_submit_and_retains_committed_receipt (test_crash_challenge.HookTests.test_exact_hook_claims_once_before_submit_and_retains_committed_receipt) ... ok
+test_expired_arm_and_foreign_target_never_enter_submit (test_crash_challenge.HookTests.test_expired_arm_and_foreign_target_never_enter_submit) ... ok
+test_other_owned_case_keeps_original_submit_behavior (test_crash_challenge.HookTests.test_other_owned_case_keeps_original_submit_behavior) ... ok
+test_attempt_receipt_or_order_identity_change_fails (test_crash_challenge.ObservationTests.test_attempt_receipt_or_order_identity_change_fails) ... ok
+test_cli_refuses_unpinned_observation_bytes (test_crash_challenge.ObservationTests.test_cli_refuses_unpinned_observation_bytes) ... ok
+test_consistency_pass_never_claims_native_execution (test_crash_challenge.ObservationTests.test_consistency_pass_never_claims_native_execution) ... ok
+test_duplicate_effect_even_with_deduplicated_destination_fails (test_crash_challenge.ObservationTests.test_duplicate_effect_even_with_deduplicated_destination_fails) ... ok
+test_foreign_container_or_generation_cannot_be_recovered (test_crash_challenge.ObservationTests.test_foreign_container_or_generation_cannot_be_recovered) ... ok
+test_forged_plan_digest_or_fields_fail (test_crash_challenge.ObservationTests.test_forged_plan_digest_or_fields_fail) ... ok
+test_hook_and_base_manifest_must_match_the_plan (test_crash_challenge.ObservationTests.test_hook_and_base_manifest_must_match_the_plan) ... ok
+test_resealed_plan_cannot_be_created_after_arm_or_cut (test_crash_challenge.ObservationTests.test_resealed_plan_cannot_be_created_after_arm_or_cut) ... ok
+test_snapshot_plan_arm_cut_restart_observation_order_is_enforced (test_crash_challenge.ObservationTests.test_snapshot_plan_arm_cut_restart_observation_order_is_enforced) ... ok
+test_synthetic_observations_require_explicit_unit_test_opt_in (test_crash_challenge.ObservationTests.test_synthetic_observations_require_explicit_unit_test_opt_in) ... ok
+test_terminal_simulated_delivery_keeps_same_accepted_effect (test_crash_challenge.ObservationTests.test_terminal_simulated_delivery_keeps_same_accepted_effect) ... ok
+test_unknown_fields_and_bad_json_are_rejected (test_crash_challenge.ObservationTests.test_unknown_fields_and_bad_json_are_rejected) ... ok
+test_valid_window_is_computed_instead_of_fixed_to_archived_timing (test_crash_challenge.ObservationTests.test_valid_window_is_computed_instead_of_fixed_to_archived_timing) ... ok
+test_bundle_bytes_inventory_and_manifest_are_pinned (test_crash_challenge.PlannerTests.test_bundle_bytes_inventory_and_manifest_are_pinned) ... ok
+test_chat_mount_must_be_owned_rw_and_c2_profile_bound (test_crash_challenge.PlannerTests.test_chat_mount_must_be_owned_rw_and_c2_profile_bound) ... ok
+test_data_directory_identity_is_bound (test_crash_challenge.PlannerTests.test_data_directory_identity_is_bound) ... ok
+test_even_an_empty_existing_directory_is_not_adopted (test_crash_challenge.PlannerTests.test_even_an_empty_existing_directory_is_not_adopted) ... ok
+test_execution_commands_cannot_run_without_exact_inputs (test_crash_challenge.PlannerTests.test_execution_commands_cannot_run_without_exact_inputs) ... ok
+test_existing_output_is_preserved_and_repeated_plan_rejected (test_crash_challenge.PlannerTests.test_existing_output_is_preserved_and_repeated_plan_rejected) ... ok
+test_existing_windows_case_alias_and_desktop_prefix_use_identity (test_crash_challenge.PlannerTests.test_existing_windows_case_alias_and_desktop_prefix_use_identity) ... ok
+test_extra_jury_mounts_require_their_sealed_receipt (test_crash_challenge.PlannerTests.test_extra_jury_mounts_require_their_sealed_receipt) ... ok
+test_foreign_container_and_image_arguments_rejected_before_write (test_crash_challenge.PlannerTests.test_foreign_container_and_image_arguments_rejected_before_write) ... ok
+test_foreign_mutated_or_extra_mount_is_refused (test_crash_challenge.PlannerTests.test_foreign_mutated_or_extra_mount_is_refused) ... ok
+test_foreign_or_unsafe_snapshot_rejected_before_write (test_crash_challenge.PlannerTests.test_foreign_or_unsafe_snapshot_rejected_before_write) ... ok
+test_known_windows_mount_aliases_only (test_crash_challenge.PlannerTests.test_known_windows_mount_aliases_only) ... ok
+test_modified_manifest_cannot_be_self_authorized (test_crash_challenge.PlannerTests.test_modified_manifest_cannot_be_self_authorized) ... ok
+test_modified_profile_and_config_bytes_rejected (test_crash_challenge.PlannerTests.test_modified_profile_and_config_bytes_rejected) ... ok
+test_nonloopback_web_origin_rejected (test_crash_challenge.PlannerTests.test_nonloopback_web_origin_rejected) ... ok
+test_output_must_be_new_and_outside_jury_workspace (test_crash_challenge.PlannerTests.test_output_must_be_new_and_outside_jury_workspace) ... ok
+test_plan_is_pinned_and_explicitly_offline (test_crash_challenge.PlannerTests.test_plan_is_pinned_and_explicitly_offline) ... ok
+test_real_live_jury_layout_accepts_exact_seven_mounts (test_crash_challenge.PlannerTests.test_real_live_jury_layout_accepts_exact_seven_mounts) ... ok
+test_recorded_fixture_profile_supported_without_model_execution (test_crash_challenge.PlannerTests.test_recorded_fixture_profile_supported_without_model_execution) ... ok
+test_replay_corpus_tamper_or_wrong_workspace_manifest_is_rejected (test_crash_challenge.PlannerTests.test_replay_corpus_tamper_or_wrong_workspace_manifest_is_rejected) ... ok
+test_replay_fixture_mount_cannot_be_writable_or_foreign (test_crash_challenge.PlannerTests.test_replay_fixture_mount_cannot_be_writable_or_foreign) ... ok
+test_resealed_config_cannot_claim_foreign_data (test_crash_challenge.PlannerTests.test_resealed_config_cannot_claim_foreign_data) ... ok
+test_resealed_profile_cannot_claim_other_deployment (test_crash_challenge.PlannerTests.test_resealed_profile_cannot_claim_other_deployment) ... ok
+test_snapshot_replaced_during_planning_does_not_create_output (test_crash_challenge.PlannerTests.test_snapshot_replaced_during_planning_does_not_create_output) ... ok
+test_unknown_fields_including_environment_are_not_copied (test_crash_challenge.PlannerTests.test_unknown_fields_including_environment_are_not_copied) ... ok
+test_windows_unicode_casefold_collision_is_not_directory_identity (test_crash_challenge.PlannerTests.test_windows_unicode_casefold_collision_is_not_directory_identity) ... ok
+test_error_output_is_sanitized (test_crash_challenge.SQLiteReadbackTests.test_error_output_is_sanitized) ... ok
+test_exact_full_container_and_mount_ownership_checked_before_and_after (test_crash_challenge.SQLiteReadbackTests.test_exact_full_container_and_mount_ownership_checked_before_and_after) ... ok
+test_foreign_cid_or_mount_rejected_before_exec (test_crash_challenge.SQLiteReadbackTests.test_foreign_cid_or_mount_rejected_before_exec) ... ok
+test_foreign_deployment_order_or_operation_rejected_before_exec (test_crash_challenge.SQLiteReadbackTests.test_foreign_deployment_order_or_operation_rejected_before_exec) ... ok
+test_generation_change_during_exec_rejected (test_crash_challenge.SQLiteReadbackTests.test_generation_change_during_exec_rejected) ... ok
+test_host_never_imports_or_opens_sqlite_and_only_fixed_selects_are_used (test_crash_challenge.SQLiteReadbackTests.test_host_never_imports_or_opens_sqlite_and_only_fixed_selects_are_used) ... ok
+test_malformed_or_oversharing_exec_output_rejected (test_crash_challenge.SQLiteReadbackTests.test_malformed_or_oversharing_exec_output_rejected) ... ok
+test_read_only_provider_counts_detect_duplicate_recovery_effect (test_crash_challenge.SQLiteReadbackTests.test_read_only_provider_counts_detect_duplicate_recovery_effect) ... ok
+test_real_sqlite_acceptance_count_survives_simulator_clock_advance (test_crash_challenge.SQLiteReadbackTests.test_real_sqlite_acceptance_count_survives_simulator_clock_advance) ... ok
+test_wrong_operation_and_provider_errors_close_connections_without_raw_output (test_crash_challenge.SQLiteReadbackTests.test_wrong_operation_and_provider_errors_close_connections_without_raw_output) ... ok
+
+----------------------------------------------------------------------
+Ran 65 tests in 23.001s
+
+OK
+
+===== test_fixture_installation | exit=0 | elapsed=85.500s =====
+test_corpus_allowlist_and_profile_tampering_are_rejected (test_fixture_installation.FixtureInstallationTests.test_corpus_allowlist_and_profile_tampering_are_rejected) ... ok
+test_extra_compose_gpu_or_used_state_never_passes_pristine_verification (test_fixture_installation.FixtureInstallationTests.test_extra_compose_gpu_or_used_state_never_passes_pristine_verification) ... ok
+test_invalid_capture_allowlist_rejects_before_output (test_fixture_installation.FixtureInstallationTests.test_invalid_capture_allowlist_rejects_before_output) ... ok
+test_missing_case_or_question_rejects_before_output_even_with_mocked_provenance (test_fixture_installation.FixtureInstallationTests.test_missing_case_or_question_rejects_before_output_even_with_mocked_provenance) ... ok
+test_mocked_provenance_file_setup_needs_no_model_gpu_or_allowance (test_fixture_installation.FixtureInstallationTests.test_mocked_provenance_file_setup_needs_no_model_gpu_or_allowance) ... ok
+test_real_validator_rejects_synthetic_capture_before_any_output (test_fixture_installation.FixtureInstallationTests.test_real_validator_rejects_synthetic_capture_before_any_output) ... ok
+test_wrong_expected_corpus_digest_rejects_before_output (test_fixture_installation.FixtureInstallationTests.test_wrong_expected_corpus_digest_rejects_before_output) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 84.946s
+
+OK
+
+===== test_jury_setup | exit=0 | elapsed=147.922s =====
+test_changed_mount_or_expanded_gpu_configuration_is_rejected (test_jury_setup.JurySetupTests.test_changed_mount_or_expanded_gpu_configuration_is_rejected) ... ok
+test_coherent_e1_policy_rewrite_cannot_expand_model_or_allowance (test_jury_setup.JurySetupTests.test_coherent_e1_policy_rewrite_cannot_expand_model_or_allowance) ... ok
+test_expanded_compose_layout_is_rejected (test_jury_setup.JurySetupTests.test_expanded_compose_layout_is_rejected) ... ok
+test_imported_tools_from_another_checkout_are_rejected (test_jury_setup.JurySetupTests.test_imported_tools_from_another_checkout_are_rejected) ... ok
+test_invalid_environment_has_controlled_error (test_jury_setup.JurySetupTests.test_invalid_environment_has_controlled_error) ... ok
+test_modified_conversation_profile_is_rejected (test_jury_setup.JurySetupTests.test_modified_conversation_profile_is_rejected) ... ok
+test_partial_output_is_preserved_without_automatic_retry (test_jury_setup.JurySetupTests.test_partial_output_is_preserved_without_automatic_retry) ... ok
+test_prepares_both_profiles_and_pristine_stage_without_execution (test_jury_setup.JurySetupTests.test_prepares_both_profiles_and_pristine_stage_without_execution) ... ok
+test_rejects_invalid_identity_before_writes (test_jury_setup.JurySetupTests.test_rejects_invalid_identity_before_writes) ... ok
+test_rejects_model_cache_inside_new_workspace (test_jury_setup.JurySetupTests.test_rejects_model_cache_inside_new_workspace) ... ok
+test_rejects_mutable_image_or_provider_port_before_writes (test_jury_setup.JurySetupTests.test_rejects_mutable_image_or_provider_port_before_writes) ... ok
+test_repeated_same_namespace_path_is_allowed_but_another_root_is_not (test_jury_setup.JurySetupTests.test_repeated_same_namespace_path_is_allowed_but_another_root_is_not) ... ok
+test_second_prepare_preserves_previous_workspace (test_jury_setup.JurySetupTests.test_second_prepare_preserves_previous_workspace) ... Timeout (0:02:00)!
+Thread 0x00006b98 (most recent call first):
+  File "<SOURCE>\tools\application_bundle.py", line 410 in build
+  File "<SOURCE>\deployment\jury_setup.py", line 290 in prepare
+  File "<SOURCE>\tests\test_jury_setup.py", line 35 in prepare
+  File "<SOURCE>\tests\test_jury_setup.py", line 62 in test_second_prepare_preserves_previous_workspace
+  File "<PYTHON>\Lib\unittest\case.py", line 589 in _callTestMethod
+  File "<PYTHON>\Lib\unittest\case.py", line 634 in run
+  File "<PYTHON>\Lib\unittest\case.py", line 690 in __call__
+  File "<PYTHON>\Lib\unittest\suite.py", line 122 in run
+  File "<PYTHON>\Lib\unittest\suite.py", line 84 in __call__
+  File "<PYTHON>\Lib\unittest\suite.py", line 122 in run
+  File "<PYTHON>\Lib\unittest\suite.py", line 84 in __call__
+  File "<PYTHON>\Lib\unittest\runner.py", line 240 in run
+  File "<VALIDATION_RUNNER>", line 77 in child
+  File "<VALIDATION_RUNNER>", line 129 in main
+  File "<VALIDATION_RUNNER>", line 171 in <module>
+ok
+test_used_workspace_cannot_be_reported_as_pristine (test_jury_setup.JurySetupTests.test_used_workspace_cannot_be_reported_as_pristine) ... ok
+
+----------------------------------------------------------------------
+Ran 14 tests in 147.460s
+
+OK
+
+===== test_model_readiness_startup | exit=0 | elapsed=0.641s =====
+test_connection_refused_then_ready_retries_get_and_posts_once (test_model_readiness_startup.ModelStartup.test_connection_refused_then_ready_retries_get_and_posts_once) ... ok
+test_startup_timeout_sends_no_neutral_and_respects_outer_deadline (test_model_readiness_startup.ModelStartup.test_startup_timeout_sends_no_neutral_and_respects_outer_deadline) ... ok
+test_wrong_model_fails_immediately_and_post_is_never_retried (test_model_readiness_startup.ModelStartup.test_wrong_model_fails_immediately_and_post_is_never_retried) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.159s
+
+OK
+
+===== test_native_bundle_descriptor | exit=0 | elapsed=13.578s =====
+test_additional_class_is_rejected_before_native_command (test_native_bundle_descriptor.BundleBindingTests.test_additional_class_is_rejected_before_native_command) ... ok
+test_additional_python_is_rejected_before_native_command (test_native_bundle_descriptor.BundleBindingTests.test_additional_python_is_rejected_before_native_command) ... ok
+test_copied_pristine_package_and_aliases_verify (test_native_bundle_descriptor.BundleBindingTests.test_copied_pristine_package_and_aliases_verify) ... ok
+test_installer_class_declaration_is_not_exempted (test_native_bundle_descriptor.BundleBindingTests.test_installer_class_declaration_is_not_exempted) ... ok
+test_ipm_module_is_verified_and_tampering_is_rejected (test_native_bundle_descriptor.BundleBindingTests.test_ipm_module_is_verified_and_tampering_is_rejected) ... ok
+test_modified_alias_bytes_are_rejected (test_native_bundle_descriptor.BundleBindingTests.test_modified_alias_bytes_are_rejected) ... ok
+test_root_readme_is_verified_and_tampering_is_rejected (test_native_bundle_descriptor.BundleBindingTests.test_root_readme_is_verified_and_tampering_is_rejected) ... ok
+test_unexpected_root_file_is_rejected_before_native_command (test_native_bundle_descriptor.BundleBindingTests.test_unexpected_root_file_is_rejected_before_native_command) ... ok
+test_wrong_digest_and_api_route_are_rejected (test_native_bundle_descriptor.BundleBindingTests.test_wrong_digest_and_api_route_are_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 13.257s
+
+OK
+
+===== test_native_console_startup | exit=0 | elapsed=0.469s =====
+test_deadline_is_absolute_and_is_never_renewed (test_native_console_startup.ConsoleStartupTests.test_deadline_is_absolute_and_is_never_renewed) ... ok
+test_existing_mutation_timeout_still_requires_original_outcome_read_not_retry (test_native_console_startup.ConsoleStartupTests.test_existing_mutation_timeout_still_requires_original_outcome_read_not_retry) ... ok
+test_main_rejects_before_mutation_when_console_is_not_ready (test_native_console_startup.ConsoleStartupTests.test_main_rejects_before_mutation_when_console_is_not_ready) ... ok
+test_main_sends_one_mutation_only_after_all_read_checks (test_native_console_startup.ConsoleStartupTests.test_main_sends_one_mutation_only_after_all_read_checks) ... ok
+test_only_exact_startup_refusal_is_retried_before_success (test_native_console_startup.ConsoleStartupTests.test_only_exact_startup_refusal_is_retried_before_success) ... ok
+test_other_exit_text_stderr_wrong_build_duplicate_and_error_are_not_retried (test_native_console_startup.ConsoleStartupTests.test_other_exit_text_stderr_wrong_build_duplicate_and_error_are_not_retried) ... ok
+test_read_timeout_is_not_retried (test_native_console_startup.ConsoleStartupTests.test_read_timeout_is_not_retried) ... ok
+test_ready_is_readonly_and_has_real_newline_and_no_install_authorization (test_native_console_startup.ConsoleStartupTests.test_ready_is_readonly_and_has_real_newline_and_no_install_authorization) ... ok
+test_success_arriving_after_deadline_is_rejected (test_native_console_startup.ConsoleStartupTests.test_success_arriving_after_deadline_is_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.004s
+
+OK
+
+===== test_native_prompt_normalization | exit=0 | elapsed=0.578s =====
+test_actual_instruction_change_creates_a_new_binding_without_rewriting_the_old_one (test_native_prompt_normalization.NativePromptNormalizationTests.test_actual_instruction_change_creates_a_new_binding_without_rewriting_the_old_one) ... ok
+test_lf_and_crlf_have_equal_prompts_but_distinct_raw_manifests (test_native_prompt_normalization.NativePromptNormalizationTests.test_lf_and_crlf_have_equal_prompts_but_distinct_raw_manifests) ... ok
+test_normalization_does_not_strip_unpaired_carriage_returns (test_native_prompt_normalization.NativePromptNormalizationTests.test_normalization_does_not_strip_unpaired_carriage_returns) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.274s
+
+OK
+
+===== test_native_recorded_conversation | exit=0 | elapsed=1.484s =====
+test_empty_mixed_or_unexpected_runtime_rejects_before_native_invocation (test_native_recorded_conversation.NativeRecordedConversationTests.test_empty_mixed_or_unexpected_runtime_rejects_before_native_invocation) ... ok
+test_incompatible_or_malformed_recorded_status_never_invokes_native (test_native_recorded_conversation.NativeRecordedConversationTests.test_incompatible_or_malformed_recorded_status_never_invokes_native) ... ok
+test_live_provider_uses_the_existing_status_unchanged (test_native_recorded_conversation.NativeRecordedConversationTests.test_live_provider_uses_the_existing_status_unchanged) ... ok
+test_profile_argument_mismatch_rejects_before_invocation (test_native_recorded_conversation.NativeRecordedConversationTests.test_profile_argument_mismatch_rejects_before_invocation) ... ok
+test_profile_changes_after_mock_native_status_are_reported_without_retry (test_native_recorded_conversation.NativeRecordedConversationTests.test_profile_changes_after_mock_native_status_are_reported_without_retry) ... ok
+test_real_fixture_status_subprocess_reads_only_local_state_without_inference (test_native_recorded_conversation.NativeRecordedConversationTests.test_real_fixture_status_subprocess_reads_only_local_state_without_inference) ... ok
+test_replay_status_is_a_fixed_bounded_subprocess_not_a_live_import (test_native_recorded_conversation.NativeRecordedConversationTests.test_replay_status_is_a_fixed_bounded_subprocess_not_a_live_import) ... ok
+test_status_transport_failures_and_duplicate_json_fields_are_rejected (test_native_recorded_conversation.NativeRecordedConversationTests.test_status_transport_failures_and_duplicate_json_fields_are_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 1.012s
+
+OK
+
+===== test_native_review_loader | exit=0 | elapsed=3.281s =====
+test_actual_current_graph_loads_and_reuses_cache (test_native_review_loader.NativeReviewLoaderTests.test_actual_current_graph_loads_and_reuses_cache) ... ok
+test_changed_engine_binding_is_rejected (test_native_review_loader.NativeReviewLoaderTests.test_changed_engine_binding_is_rejected) ... ok
+test_changed_module_origin_is_rejected (test_native_review_loader.NativeReviewLoaderTests.test_changed_module_origin_is_rejected) ... ok
+test_extra_module_is_rejected (test_native_review_loader.NativeReviewLoaderTests.test_extra_module_is_rejected) ... ok
+test_missing_clarification_is_rejected (test_native_review_loader.NativeReviewLoaderTests.test_missing_clarification_is_rejected) ... ok
+test_prior_missing_child_allowlist_reproduces_real_regression (test_native_review_loader.NativeReviewLoaderTests.test_prior_missing_child_allowlist_reproduces_real_regression) ... ok
+test_wrong_namespace_is_rejected (test_native_review_loader.NativeReviewLoaderTests.test_wrong_namespace_is_rejected) ... ok
+test_wrong_root_is_rejected (test_native_review_loader.NativeReviewLoaderTests.test_wrong_root_is_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 2.986s
+
+OK
+
+===== test_native_workflow_delivery | exit=0 | elapsed=1.531s =====
+test_authorization_and_environment_do_not_inherit_a_previous_apply (test_native_workflow_delivery.WorkflowDeliveryTests.test_authorization_and_environment_do_not_inherit_a_previous_apply) ... ok
+test_callbacks_allow_only_exact_callbacks_and_direct_timechanged_metadata (test_native_workflow_delivery.WorkflowDeliveryTests.test_callbacks_allow_only_exact_callbacks_and_direct_timechanged_metadata) ... ok
+test_callbacks_reject_utf16_doctype_nul_and_invalid_utf8 (test_native_workflow_delivery.WorkflowDeliveryTests.test_callbacks_reject_utf16_doctype_nul_and_invalid_utf8) ... ok
+test_console_blocks_are_one_physical_line_with_separate_marker_and_halt (test_native_workflow_delivery.WorkflowDeliveryTests.test_console_blocks_are_one_physical_line_with_separate_marker_and_halt) ... ok
+test_inspection_cannot_compile_and_fresh_apply_checks_both_class_catalogues_first (test_native_workflow_delivery.WorkflowDeliveryTests.test_inspection_cannot_compile_and_fresh_apply_checks_both_class_catalogues_first) ... ok
+test_lost_apply_outcome_preserves_intent_and_no_second_mutation (test_native_workflow_delivery.WorkflowDeliveryTests.test_lost_apply_outcome_preserves_intent_and_no_second_mutation) ... ok
+test_missing_partial_foreign_and_extra_markers_cannot_be_reused (test_native_workflow_delivery.WorkflowDeliveryTests.test_missing_partial_foreign_and_extra_markers_cannot_be_reused) ... ok
+test_owned_marker_uses_exact_raw_metadata_strings (test_native_workflow_delivery.WorkflowDeliveryTests.test_owned_marker_uses_exact_raw_metadata_strings) ... ok
+test_timeout_is_uncertain_and_does_not_retry (test_native_workflow_delivery.WorkflowDeliveryTests.test_timeout_is_uncertain_and_does_not_retry) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 1.031s
+
+OK
+
+===== test_native_workflow_loader | exit=0 | elapsed=0.484s =====
+test_compiled_parameter_uses_observed_dictionary_default_property (test_native_workflow_loader.WorkflowSystemQueryLoaderTests.test_compiled_parameter_uses_observed_dictionary_default_property) ... ok
+test_duplicate_marker_fields_are_rejected (test_native_workflow_loader.WorkflowSystemQueryLoaderTests.test_duplicate_marker_fields_are_rejected) ... ok
+test_empty_oversized_invalid_utf8_and_symlink_sources_are_rejected (test_native_workflow_loader.WorkflowSystemQueryLoaderTests.test_empty_oversized_invalid_utf8_and_symlink_sources_are_rejected) ... ok
+test_file_hash_preserves_exact_utf8_bytes_and_line_endings (test_native_workflow_loader.WorkflowSystemQueryLoaderTests.test_file_hash_preserves_exact_utf8_bytes_and_line_endings) ... ok
+test_first_compile_requires_absent_class_and_absent_marker (test_native_workflow_loader.WorkflowSystemQueryLoaderTests.test_first_compile_requires_absent_class_and_absent_marker) ... ok
+test_incomplete_unknown_and_subscripted_markers_do_not_allow_retry (test_native_workflow_loader.WorkflowSystemQueryLoaderTests.test_incomplete_unknown_and_subscripted_markers_do_not_allow_retry) ... ok
+test_inspection_boundaries_never_compile_or_write (test_native_workflow_loader.WorkflowSystemQueryLoaderTests.test_inspection_boundaries_never_compile_or_write) ... ok
+test_loader_runs_before_resource_and_application_mutations (test_native_workflow_loader.WorkflowSystemQueryLoaderTests.test_loader_runs_before_resource_and_application_mutations) ... ok
+test_missing_changed_or_malformed_source_fails_closed (test_native_workflow_loader.WorkflowSystemQueryLoaderTests.test_missing_changed_or_malformed_source_fails_closed) ... ok
+test_owned_ready_reuses_without_a_new_compile (test_native_workflow_loader.WorkflowSystemQueryLoaderTests.test_owned_ready_reuses_without_a_new_compile) ... ok
+test_partial_loading_and_repeated_failure_never_allow_retry (test_native_workflow_loader.WorkflowSystemQueryLoaderTests.test_partial_loading_and_repeated_failure_never_allow_retry) ... ok
+test_ready_requires_present_class_and_native_metadata (test_native_workflow_loader.WorkflowSystemQueryLoaderTests.test_ready_requires_present_class_and_native_metadata) ... ok
+
+----------------------------------------------------------------------
+Ran 12 tests in 0.025s
+
+OK
+
+===== test_preparation_claim | exit=0 | elapsed=0.297s =====
+test_every_claim_binding_tamper_is_rejected (test_preparation_claim.TwoPhaseContracts.test_every_claim_binding_tamper_is_rejected) ... ok
+test_malformed_duplicate_and_boolean_integer_claims_fail_closed (test_preparation_claim.TwoPhaseContracts.test_malformed_duplicate_and_boolean_integer_claims_fail_closed) ... ok
+test_real_private_checker_accepts_exact_unchanged_bindings (test_preparation_claim.TwoPhaseContracts.test_real_private_checker_accepts_exact_unchanged_bindings) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.002s
+
+OK
+
+===== test_recorded_explanation | exit=0 | elapsed=0.468s =====
+test_existing_live_and_legacy_attribution_wording_retained (test_recorded_explanation.RecordedExplanationTests.test_existing_live_and_legacy_attribution_wording_retained) ... ok
+test_recorded_choice_separates_interpretation_from_current_ranking (test_recorded_explanation.RecordedExplanationTests.test_recorded_choice_separates_interpretation_from_current_ranking) ... ok
+test_recorded_hold_does_not_claim_missing_or_fresh_attribution (test_recorded_explanation.RecordedExplanationTests.test_recorded_hold_does_not_claim_missing_or_fresh_attribution) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.003s
+
+OK
+
+===== test_transport_reconnect | exit=0 | elapsed=0.344s =====
+test_authorization_precedes_any_docker_call (test_transport_reconnect.Tests.test_authorization_precedes_any_docker_call) ... ok
+test_docker_wrapper_keeps_local_endpoint_and_argument_boundaries (test_transport_reconnect.Tests.test_docker_wrapper_keeps_local_endpoint_and_argument_boundaries) ... ok
+test_duplicate_cids_or_missing_guard_are_rejected (test_transport_reconnect.Tests.test_duplicate_cids_or_missing_guard_are_rejected) ... ok
+test_engine_generation_change_prevents_restart (test_transport_reconnect.Tests.test_engine_generation_change_prevents_restart) ... ok
+test_existing_evidence_never_replaced (test_transport_reconnect.Tests.test_existing_evidence_never_replaced) ... ok
+test_failed_endpoint_does_not_repeat_restart (test_transport_reconnect.Tests.test_failed_endpoint_does_not_repeat_restart) ... ok
+test_foreign_project_stopped_service_and_bad_mounts_reject_before_restart (test_transport_reconnect.Tests.test_foreign_project_stopped_service_and_bad_mounts_reject_before_restart) ... ok
+test_late_restart_of_an_earlier_guard_prevents_final_verification (test_transport_reconnect.Tests.test_late_restart_of_an_earlier_guard_prevents_final_verification) ... ok
+test_matching_network_mode_is_not_namespace_proof (test_transport_reconnect.Tests.test_matching_network_mode_is_not_namespace_proof) ... ok
+test_reconnects_only_stale_owned_sidecars (test_transport_reconnect.Tests.test_reconnects_only_stale_owned_sidecars) ... ok
+test_second_concurrent_reservation_never_restarts_any_service (test_transport_reconnect.Tests.test_second_concurrent_reservation_never_restarts_any_service) ... ok
+test_second_explicit_observation_has_no_additional_restarts (test_transport_reconnect.Tests.test_second_explicit_observation_has_no_additional_restarts) ... ok
+test_uncertain_restart_is_not_repeated_and_retains_result (test_transport_reconnect.Tests.test_uncertain_restart_is_not_repeated_and_retains_result) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.034s
+
+OK
+
+===== transport.test_fixture_replay | exit=0 | elapsed=50.047s =====
+test_actual_banked_user_history_is_checked_without_trimming (transport.test_fixture_replay.FixtureReplayTests.test_actual_banked_user_history_is_checked_without_trimming) ... ok
+test_all_material_fixture_mutations_rejected_without_fuzzy_matching (transport.test_fixture_replay.FixtureReplayTests.test_all_material_fixture_mutations_rejected_without_fuzzy_matching) ... ok
+test_c2_owning_bindings_are_checked_before_rebind (transport.test_fixture_replay.FixtureReplayTests.test_c2_owning_bindings_are_checked_before_rebind) ... ok
+test_c2_rebinds_only_native_bindings_and_uses_current_renderer_prose (transport.test_fixture_replay.FixtureReplayTests.test_c2_rebinds_only_native_bindings_and_uses_current_renderer_prose) ... ok
+test_changed_corpus_fixture_field_cannot_inherit_caller_pin (transport.test_fixture_replay.FixtureReplayTests.test_changed_corpus_fixture_field_cannot_inherit_caller_pin) ... ok
+test_changed_fixture_source_invalidates_loaded_corpus (transport.test_fixture_replay.FixtureReplayTests.test_changed_fixture_source_invalidates_loaded_corpus) ... ok
+test_corpus_fixture_capture_and_prompt_pins_are_required (transport.test_fixture_replay.FixtureReplayTests.test_corpus_fixture_capture_and_prompt_pins_are_required) ... ok
+test_different_owned_deployment_and_fresh_trials_keep_only_fixed_intent (transport.test_fixture_replay.FixtureReplayTests.test_different_owned_deployment_and_fresh_trials_keep_only_fixed_intent) ... ok
+test_duplicate_correlations_and_corpus_mutation_rejected (transport.test_fixture_replay.FixtureReplayTests.test_duplicate_correlations_and_corpus_mutation_rejected) ... ok
+test_elapsed_time_can_change_eligible_selection_without_changing_interpretation (transport.test_fixture_replay.FixtureReplayTests.test_elapsed_time_can_change_eligible_selection_without_changing_interpretation) ... ok
+test_extra_fixture_message_and_catalog_source_are_not_hidden (transport.test_fixture_replay.FixtureReplayTests.test_extra_fixture_message_and_catalog_source_are_not_hidden) ... ok
+test_four_actual_shipped_definitions_have_separate_recorded_interpretations (transport.test_fixture_replay.FixtureReplayTests.test_four_actual_shipped_definitions_have_separate_recorded_interpretations) ... ok
+test_four_neutral_questions_replay_only_recorded_plans (transport.test_fixture_replay.FixtureReplayTests.test_four_neutral_questions_replay_only_recorded_plans) ... ok
+test_free_text_changed_punctuation_and_nonbank_history_rejected (transport.test_fixture_replay.FixtureReplayTests.test_free_text_changed_punctuation_and_nonbank_history_rejected) ... ok
+test_opposite_priority_catalog_counterexample_is_unsupported (transport.test_fixture_replay.FixtureReplayTests.test_opposite_priority_catalog_counterexample_is_unsupported) ... ok
+test_pinned_file_loads_without_creating_missing_paths (transport.test_fixture_replay.FixtureReplayTests.test_pinned_file_loads_without_creating_missing_paths) ... ok
+test_preference_change_or_unrelated_recorded_topic_rejected (transport.test_fixture_replay.FixtureReplayTests.test_preference_change_or_unrelated_recorded_topic_rejected) ... ok
+test_recorded_interpretation_must_match_fixture_and_cite_customer (transport.test_fixture_replay.FixtureReplayTests.test_recorded_interpretation_must_match_fixture_and_cite_customer) ... ok
+test_synthetic_captures_refused_by_default_and_provenance_not_self_attested (transport.test_fixture_replay.FixtureReplayTests.test_synthetic_captures_refused_by_default_and_provenance_not_self_attested) ... ok
+test_temporally_conditional_preference_counterexample_is_unsupported (transport.test_fixture_replay.FixtureReplayTests.test_temporally_conditional_preference_counterexample_is_unsupported) ... ok
+test_trials_must_equal_fresh_simulation_not_caller_success_labels (transport.test_fixture_replay.FixtureReplayTests.test_trials_must_equal_fresh_simulation_not_caller_success_labels) ... ok
+test_unknown_accepted_uncertain_and_foreign_order_are_not_inference_cases (transport.test_fixture_replay.FixtureReplayTests.test_unknown_accepted_uncertain_and_foreign_order_are_not_inference_cases) ... ok
+
+----------------------------------------------------------------------
+Ran 22 tests in 49.465s
+
+OK
+
+===== transport.test_reasoning_on | exit=0 | elapsed=5.812s =====
+test_capability_checks_share_the_exact_deadline_and_discard_show_metadata (transport.test_reasoning_on.ReasoningOnTests.test_capability_checks_share_the_exact_deadline_and_discard_show_metadata) ... ok
+test_capability_failure_cannot_claim_or_dispatch (transport.test_reasoning_on.ReasoningOnTests.test_capability_failure_cannot_claim_or_dispatch) ... {"event":"chronos.transport.rejected","request_id":null,"code":"THINKING_POLICY_UNSUPPORTED","elapsed_ms":0}
+ok
+test_legacy_context_policy_does_not_add_a_show_probe (transport.test_reasoning_on.ReasoningOnTests.test_legacy_context_policy_does_not_add_a_show_probe) ... ok
+test_legacy_native_payload_bytes_remain_identical (transport.test_reasoning_on.ReasoningOnTests.test_legacy_native_payload_bytes_remain_identical) ... ok
+test_local_cli_accepts_on_without_preparing_state (transport.test_reasoning_on.ReasoningOnTests.test_local_cli_accepts_on_without_preparing_state) ... ok
+test_on_maps_to_real_boolean_without_changing_generation_limits (transport.test_reasoning_on.ReasoningOnTests.test_on_maps_to_real_boolean_without_changing_generation_limits) ... ok
+test_on_rejects_cloud_recorded_a1_and_every_conversation_version (transport.test_reasoning_on.ReasoningOnTests.test_on_rejects_cloud_recorded_a1_and_every_conversation_version) ... ok
+test_on_warmup_report_stays_unverified_after_historical_read (transport.test_reasoning_on.ReasoningOnTests.test_on_warmup_report_stays_unverified_after_historical_read) ... ok
+test_profile_on_is_explicit_and_legacy_none_bytes_are_unchanged (transport.test_reasoning_on.ReasoningOnTests.test_profile_on_is_explicit_and_legacy_none_bytes_are_unchanged) ... ok
+test_request_and_settings_decline_on_outside_e1_bound_ollama (transport.test_reasoning_on.ReasoningOnTests.test_request_and_settings_decline_on_outside_e1_bound_ollama) ... ok
+test_success_dispatches_boolean_true_once_and_strips_thinking (transport.test_reasoning_on.ReasoningOnTests.test_success_dispatches_boolean_true_once_and_strips_thinking) ... {"event":"chronos.transport.rejected","request_id":null,"code":"REQUEST_ALREADY_USED","elapsed_ms":0}
+ok
+test_unsupported_or_numeric_thinking_controls_are_rejected (transport.test_reasoning_on.ReasoningOnTests.test_unsupported_or_numeric_thinking_controls_are_rejected) ... ok
+test_warmup_on_is_deliberately_nonreasoning_and_legacy_payload_unchanged (transport.test_reasoning_on.ReasoningOnTests.test_warmup_on_is_deliberately_nonreasoning_and_legacy_payload_unchanged) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 5.274s
+
+OK
+
+===== transport.test_replay | exit=0 | elapsed=49.953s =====
+test_attempt_identity_uses_the_real_string_contract (transport.test_replay.ReplayTests.test_attempt_identity_uses_the_real_string_contract) ... ok
+test_c2_bad_stored_binding_and_unknown_topic_reject (transport.test_replay.ReplayTests.test_c2_bad_stored_binding_and_unknown_topic_reject) ... ok
+test_c2_does_not_fuzzy_match_or_trim_history (transport.test_replay.ReplayTests.test_c2_does_not_fuzzy_match_or_trim_history) ... ok
+test_c2_rebind_changes_only_four_fields_never_fact_prose (transport.test_replay.ReplayTests.test_c2_rebind_changes_only_four_fields_never_fact_prose) ... ok
+test_capture_projection_and_corpus_hashes_are_required (transport.test_replay.ReplayTests.test_capture_projection_and_corpus_hashes_are_required) ... ok
+test_case_relative_opposite_priority_plan_cannot_rebind_to_changed_catalog (transport.test_replay.ReplayTests.test_case_relative_opposite_priority_plan_cannot_rebind_to_changed_catalog) ... ok
+test_changed_budget_queue_message_provenance_or_acceptance_reject (transport.test_replay.ReplayTests.test_changed_budget_queue_message_provenance_or_acceptance_reject) ... ok
+test_clock_receipt_and_context_changes_are_not_portable_replay (transport.test_replay.ReplayTests.test_clock_receipt_and_context_changes_are_not_portable_replay) ... ok
+test_context_digest_and_time_conversion_are_verified (transport.test_replay.ReplayTests.test_context_digest_and_time_conversion_are_verified) ... ok
+test_duplicate_json_keys_and_limits (transport.test_replay.ReplayTests.test_duplicate_json_keys_and_limits) ... ok
+test_duplicate_projection_is_rejected (transport.test_replay.ReplayTests.test_duplicate_projection_is_rejected) ... ok
+test_dynamic_trial_and_receipt_citations_are_refused (transport.test_replay.ReplayTests.test_dynamic_trial_and_receipt_citations_are_refused) ... ok
+test_e1_preserves_recorded_bytes_and_honest_metadata (transport.test_replay.ReplayTests.test_e1_preserves_recorded_bytes_and_honest_metadata) ... ok
+test_elapsed_time_conditional_preference_cannot_replay_earlier_interpretation (transport.test_replay.ReplayTests.test_elapsed_time_conditional_preference_cannot_replay_earlier_interpretation) ... ok
+test_evidence_model_allowlist_is_required (transport.test_replay.ReplayTests.test_evidence_model_allowlist_is_required) ... ok
+test_metadata_changes_do_not_change_corpus_or_result (transport.test_replay.ReplayTests.test_metadata_changes_do_not_change_corpus_or_result) ... ok
+test_missing_corpus_is_not_created_and_pinned_file_loads (transport.test_replay.ReplayTests.test_missing_corpus_is_not_created_and_pinned_file_loads) ... ok
+test_nonfinite_and_unpaired_unicode_do_not_escape_as_runtime_exceptions (transport.test_replay.ReplayTests.test_nonfinite_and_unpaired_unicode_do_not_escape_as_runtime_exceptions) ... ok
+test_record_count_is_bounded_before_processing_records (transport.test_replay.ReplayTests.test_record_count_is_bounded_before_processing_records) ... ok
+test_separate_a_b_hold_captures (transport.test_replay.ReplayTests.test_separate_a_b_hold_captures) ... ok
+test_synthetic_not_accepted_in_production_policy (transport.test_replay.ReplayTests.test_synthetic_not_accepted_in_production_policy) ... ok
+test_unknown_contract_and_wrong_prompt (transport.test_replay.ReplayTests.test_unknown_contract_and_wrong_prompt) ... ok
+
+----------------------------------------------------------------------
+Ran 22 tests in 49.484s
+
+OK
+
+===== transport.test_replay_provider | exit=0 | elapsed=13.453s =====
+test_c2_http_preserves_bound_plan_receipt_contract (transport.test_replay_provider.ProviderTests.test_c2_http_preserves_bound_plan_receipt_contract) ... ok
+test_complete_python_prepare_status_and_http_with_sealed_synthetic_fixture_corpus (transport.test_replay_provider.ProviderTests.test_complete_python_prepare_status_and_http_with_sealed_synthetic_fixture_corpus) ... ok
+test_corpus_validation_occurs_before_initialization (transport.test_replay_provider.ProviderTests.test_corpus_validation_occurs_before_initialization) ... ok
+test_default_prepare_refuses_synthetic_capture_without_creating_quota (transport.test_replay_provider.ProviderTests.test_default_prepare_refuses_synthetic_capture_without_creating_quota) ... ok
+test_duplicate_request_is_rejected_without_second_handler_call (transport.test_replay_provider.ProviderTests.test_duplicate_request_is_rejected_without_second_handler_call) ... {"event":"chronos.transport.rejected","request_id":null,"code":"REQUEST_ALREADY_USED","elapsed_ms":0}
+ok
+test_e1_and_c2_use_separate_runtime_and_durable_quotas (transport.test_replay_provider.ProviderTests.test_e1_and_c2_use_separate_runtime_and_durable_quotas) ... ok
+test_failed_replay_keeps_claim_and_never_calls_model (transport.test_replay_provider.ProviderTests.test_failed_replay_keeps_claim_and_never_calls_model) ... {"event":"chronos.transport.rejected","request_id":"3aaa6f62-8368-48ca-9d98-24a3cf37271b","code":"RECORDED_INPUT_UNSUPPORTED","elapsed_ms":203}
+{"event":"chronos.transport.rejected","request_id":null,"code":"REQUEST_ALREADY_USED","elapsed_ms":0}
+ok
+test_invalid_profile_deadline_and_get_do_not_spend_quota (transport.test_replay_provider.ProviderTests.test_invalid_profile_deadline_and_get_do_not_spend_quota) ... {"event":"chronos.transport.rejected","request_id":null,"code":"PROFILE_MISMATCH","elapsed_ms":0}
+{"event":"chronos.transport.rejected","request_id":null,"code":"REQUEST_DEADLINE","elapsed_ms":0}
+ok
+test_live_public_profile_bytes_and_digest_unchanged (transport.test_replay_provider.ProviderTests.test_live_public_profile_bytes_and_digest_unchanged) ... ok
+test_plan_is_read_only_and_uses_distinct_contract_profiles (transport.test_replay_provider.ProviderTests.test_plan_is_read_only_and_uses_distinct_contract_profiles) ... ok
+test_profile_digest_pins_both_corpus_and_fixture (transport.test_replay_provider.ProviderTests.test_profile_digest_pins_both_corpus_and_fixture) ... ok
+test_recorded_endpoint_can_never_fall_through_to_cloud (transport.test_replay_provider.ProviderTests.test_recorded_endpoint_can_never_fall_through_to_cloud) ... ok
+test_recorded_http_has_zero_egress_exact_receipt_and_zero_new_tokens (transport.test_replay_provider.ProviderTests.test_recorded_http_has_zero_egress_exact_receipt_and_zero_new_tokens) ... ok
+test_recorded_profile_rejects_upstream_alias_effort_versions_or_missing_hashes (transport.test_replay_provider.ProviderTests.test_recorded_profile_rejects_upstream_alias_effort_versions_or_missing_hashes) ... ok
+test_recorded_settings_refuse_any_upstream_or_unpinned_handler (transport.test_replay_provider.ProviderTests.test_recorded_settings_refuse_any_upstream_or_unpinned_handler) ... ok
+test_status_rejects_tampered_corpus_or_evidence_allowlist (transport.test_replay_provider.ProviderTests.test_status_rejects_tampered_corpus_or_evidence_allowlist) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 12.918s
+
+OK
+
+===== web.test_policy | exit=0 | elapsed=0.313s =====
+test_operation_read_and_query_are_exact_guarded_ids (web.test_policy.OperationPolicyTests.test_operation_read_and_query_are_exact_guarded_ids) ... ok
+test_all_commands_translate_only_ids (web.test_policy.PolicyTests.test_all_commands_translate_only_ids) ... ok
+test_configuration_fails_closed (web.test_policy.PolicyTests.test_configuration_fails_closed) ... ok
+test_correlation_duplicates_escaping_and_order (web.test_policy.PolicyTests.test_correlation_duplicates_escaping_and_order) ... ok
+test_correlation_required_exact_and_never_a_grant (web.test_policy.PolicyTests.test_correlation_required_exact_and_never_a_grant) ... ok
+test_csrf_is_not_reflected_and_cannot_be_empty (web.test_policy.PolicyTests.test_csrf_is_not_reflected_and_cannot_be_empty) ... ok
+test_decision_route_is_separate_and_never_accepts_authority (web.test_policy.PolicyTests.test_decision_route_is_separate_and_never_accepts_authority) ... ok
+test_duplicates_including_escaped_keys_are_rejected (web.test_policy.PolicyTests.test_duplicates_including_escaped_keys_are_rejected) ... ok
+test_invalid_or_ambiguous_json (web.test_policy.PolicyTests.test_invalid_or_ambiguous_json) ... ok
+test_loopback_http_is_explicit_and_exact (web.test_policy.PolicyTests.test_loopback_http_is_explicit_and_exact) ... ok
+test_media_and_encoding (web.test_policy.PolicyTests.test_media_and_encoding) ... ok
+test_method_and_origin_are_required (web.test_policy.PolicyTests.test_method_and_origin_are_required) ... ok
+test_no_authority_fields_or_nonstring_ids (web.test_policy.PolicyTests.test_no_authority_fields_or_nonstring_ids) ... ok
+test_preparation_commands_accept_only_public_correlation (web.test_policy.PolicyTests.test_preparation_commands_accept_only_public_correlation) ... ok
+test_preparation_requests_keep_csrf_origin_method_and_size_guards (web.test_policy.PolicyTests.test_preparation_requests_keep_csrf_origin_method_and_size_guards) ... ok
+test_size_bound_counts_utf8_bytes (web.test_policy.PolicyTests.test_size_bound_counts_utf8_bytes) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 0.008s
+
+OK
+
+===== web.test_workflow_policy | exit=0 | elapsed=0.297s =====
+test_duplicate_keys_and_nonfinite_json (web.test_workflow_policy.WorkflowBodyPolicyTests.test_duplicate_keys_and_nonfinite_json) ... ok
+test_five_bounded_actions (web.test_workflow_policy.WorkflowBodyPolicyTests.test_five_bounded_actions) ... ok
+test_ids_and_types (web.test_workflow_policy.WorkflowBodyPolicyTests.test_ids_and_types) ... ok
+test_invalid_or_large_body (web.test_workflow_policy.WorkflowBodyPolicyTests.test_invalid_or_large_body) ... ok
+test_invalid_utf8_hex_or_encoding_is_rejected (web.test_workflow_policy.WorkflowBodyPolicyTests.test_invalid_utf8_hex_or_encoding_is_rejected) ... ok
+test_never_accepts_effect_commands (web.test_workflow_policy.WorkflowBodyPolicyTests.test_never_accepts_effect_commands) ... ok
+test_note_control_and_size_bounds (web.test_workflow_policy.WorkflowBodyPolicyTests.test_note_control_and_size_bounds) ... ok
+test_unsupported_authority_and_identity_are_rejected (web.test_workflow_policy.WorkflowBodyPolicyTests.test_unsupported_authority_and_identity_are_rejected) ... ok
+test_utf8_literal_and_json_escape_preserve_the_same_note (web.test_workflow_policy.WorkflowBodyPolicyTests.test_utf8_literal_and_json_escape_preserve_the_same_note) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.004s
+
+OK
+

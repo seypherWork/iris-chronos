@@ -26,9 +26,9 @@ The case chat uses familiar message bubbles, a multiline composer and a visible 
 
 ## Installation and evidence
 
+**Python validation update — 15 November 2026:** all **324 distributed Python tests passed in 24 isolated modules** on Windows, with zero failures, errors or skips (402.247 seconds). The tested files matched release 1.1.1. See the [results and sanitized logs](deployment/EVIDENCE.md#complete-python-regression-15-november-2026). These local tests are separate from the native IRIS, model and UI evidence below.
+
 Version 1.1.1 corrects the complete-application installer to accept the hash-verified IPM descriptor included in the archive. The native module evidence below was obtained with 1.1.0; no new native feature is implied by this installer correction.
-
-
 
 The [IPM module](module.xml) installs native ObjectScript classes and the production definition. The complete application additionally needs the documented Compose services, Python components, web assets, private storage and access setup. IPM 0.10.10 installed version 1.1.0 and compiled all 52 expected source classes on AI Hub 154. This is separate from complete application acceptance. Native Workflow, recorded rehearsal and live UI chat have individual evidence; one local instrumented portable interruption challenge now has matching native recovery and UI receipt evidence. The final startup and wording corrections were checked separately; see the [scope and limits](deployment/EVIDENCE.md#version-111-corrections-and-new-recovery-observation).
 

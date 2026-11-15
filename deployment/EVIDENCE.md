@@ -6,7 +6,19 @@ A fresh local instrumented case on AI Hub 154 exercised one live E1 decision, on
 
 That full case used base manifest `5da5b4426fc59745e7b01752c58cf66cc003dd974ccecf93be4864571624b10b` and derived manifest `346aaec3b351796b92886297afbe4755d940d5b687f0ba36b40d9d7e3c829ec5`. The final readiness addition and wording changes were checked separately: nine console fault-injection tests, the actual read-only console function on IRIS 154, nine bundle-integrity tests and 457 web tests passed. The native console probe was ready on its first attempt; its temporary refusal path was exercised by fault injection. This does not imply a fresh combined installation of the final archive or qualification on another machine.
 
-The complete Python discovery hit its six-minute limit and is **not** counted as passed. Earlier failed and qualified recovery runs remain unchanged below. The interruption challenge is optional for an initial review; ordinary decision, chat and approval routes remain the recommended starting point.
+The earlier complete Python discovery hit its six-minute limit and remains an incomplete attempt. A subsequent run executed every discovered case in isolated modules: **324/324 passed**, with no failures, errors or skips; see the [complete Python regression](#complete-python-regression-15-november-2026). Earlier failed and qualified recovery runs remain unchanged below. The interruption challenge is optional for an initial review; ordinary decision, chat and approval routes remain the recommended starting point.
+
+## Complete Python regression (15 November 2026)
+
+All **324 distributed Python tests passed in 24 isolated modules** on Windows with Python 3.12.14. Total elapsed time was **402.247 seconds**. There were zero failures, errors, skips, expected failures or timed-out blocks.
+
+- The discovered test IDs matched 324 actual start and stop events, each exactly once. An independent read-only review checked those counts and the saved evidence hashes.
+- All 278 source files matched the published 1.1.1 commit [`9f6ee69880bb`](https://github.com/seypherWork/iris-chronos/tree/9f6ee69880bbbec0b8a8e074d7ca7789d5463b36) before this documentation update; there were no extra, missing or changed source files. No product correction was needed.
+- These are local Python unit/component tests, including synthetic fixtures and mocked dependencies. They did not start IRIS, Docker or a real model and are separate from the native runtime and 457 web-test observations above. The nine bundle-integrity and nine console-startup tests are included in the 324, not additional tests.
+
+The [sanitized summary](evidence/python-1.1.1-20261115/summary.json) lists every module and its result. The [combined log](evidence/python-1.1.1-20261115/test-results.log) preserves the output with private filesystem prefixes replaced by placeholders. Its periodic two-minute stack snapshot is diagnostic output, not a failed or aborted block. The earlier six-minute attempt remains incomplete; it has not been relabelled as passed.
+
+To repeat discovery from the reviewed checkout, set `PYTHONPATH` to its `src` and `tools` directories and use `python -B -m unittest discover -s tests -p "test*.py" -v`. The reported run isolated each discovered module in a separate Python process and saved output continuously; it does not claim one shared-process run or independent-machine qualification.
 
 ---
 

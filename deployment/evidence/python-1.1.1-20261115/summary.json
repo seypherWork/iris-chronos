@@ -1,0 +1,278 @@
+{
+  "schema_version": "chronos.python-validation.v1",
+  "observed_at": "2026-11-15T19:41:50.488888+00:00",
+  "release": "1.1.1",
+  "tested_commit": "9f6ee69880bbbec0b8a8e074d7ca7789d5463b36",
+  "documentation_update_after_test": true,
+  "scope": "ALL_DISTRIBUTED_PYTHON_TESTS_IN_ISOLATED_MODULES_ON_WINDOWS",
+  "python": "3.12.14",
+  "discovered": 324,
+  "started": 324,
+  "finished": 324,
+  "modules": 24,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "expected_failures": 0,
+  "timed_out_blocks": 0,
+  "elapsed_seconds": 402.247,
+  "source_files_matched": 278,
+  "source_changes": 0,
+  "additional_source_files": 0,
+  "original_result_sha256": "a30b73e995a7523be5f753ad74f5434ef19778f73008cc6e98cadc5fa1b4a949",
+  "original_verification_sha256": "3afb71de238b07591f0dca6183a954aee07085fe11d67b9455aa0a859da48ba7",
+  "original_source_manifest_sha256": "d96c361eeb4ad8b047d7bb420145977b6a7f14e66ee0bc62f191c8e353401899",
+  "original_evidence_hashes_rechecked": 79,
+  "independent_read_only_review": true,
+  "combined_sanitized_log_sha256": "8ca6349d064d7bdc0e311c204a0685c18d30b20a7639208c77804215f8fd2345",
+  "log_redactions": "Private source, Python runtime, validation runner and temporary-directory path prefixes only",
+  "prior_six_minute_attempt": "INCOMPLETE_PRESERVED_NOT_RECLASSIFIED",
+  "limits": [
+    "Local Python unit/component tests with synthetic fixtures and mocked dependencies",
+    "No new native IRIS, Docker, real-model, Node or other-OS execution",
+    "Nine bundle-integrity and nine console-startup tests are included in the 324",
+    "Not a shared-process test run or independent-machine qualification"
+  ],
+  "results": [
+    {
+      "module": "agent.test_clarification",
+      "tests": 26,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 0.313,
+      "original_log_sha256": "d971e370c09ff85a05743d35b99aec030af9934a48b8e7cd75b89ecfdbea2d35"
+    },
+    {
+      "module": "agent.test_clarification_contract",
+      "tests": 27,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 0.39,
+      "original_log_sha256": "e941a9aebd3433c3cc320cad87ffbac2463fbe0e9e519e00c0b3a5757719e302"
+    },
+    {
+      "module": "agent.test_clarification_projection",
+      "tests": 4,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 0.328,
+      "original_log_sha256": "f95d078d914e067a442d28d979df3334ce37d323810147315d622c57bce38ed7"
+    },
+    {
+      "module": "agent.test_clarified_chat",
+      "tests": 3,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 0.515,
+      "original_log_sha256": "f731e01115505696fc0d7105e4bab2b4c85c5502be2803805f96af57f3bfc553"
+    },
+    {
+      "module": "test_crash_challenge",
+      "tests": 65,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 23.453,
+      "original_log_sha256": "8dbd8f764d7867eea1780e002d12da1dbf133ca7a827054574a7441d7ebac692"
+    },
+    {
+      "module": "test_fixture_installation",
+      "tests": 7,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 85.5,
+      "original_log_sha256": "cb332e77ba77d6b764c21259ca88bc3d2b37fdb3105fdcda6ea12ef6f331bc19"
+    },
+    {
+      "module": "test_jury_setup",
+      "tests": 14,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 147.922,
+      "original_log_sha256": "49a3258b8d33e6ae9997a99ca764e965d131c19bee13e6c381bbfce7219a6c2f"
+    },
+    {
+      "module": "test_model_readiness_startup",
+      "tests": 3,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 0.641,
+      "original_log_sha256": "3d3e099c23aa80808960e5c27ed451d38ced5faf8e1f2c3bdca7bb33fcf9f522"
+    },
+    {
+      "module": "test_native_bundle_descriptor",
+      "tests": 9,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 13.578,
+      "original_log_sha256": "9088e709b0fe6388306754ee04f1cc2c015111444dd1666f0d23a66d76101b7b"
+    },
+    {
+      "module": "test_native_console_startup",
+      "tests": 9,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 0.469,
+      "original_log_sha256": "630fa2fabb1f48440fd93e10807d3030d60b7d36a5142526732db47a8c8e8196"
+    },
+    {
+      "module": "test_native_prompt_normalization",
+      "tests": 3,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 0.578,
+      "original_log_sha256": "12805189a3b6ed8e334933ca2ce025a03ae84e0d54345872a1c63e09f70910af"
+    },
+    {
+      "module": "test_native_recorded_conversation",
+      "tests": 8,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 1.484,
+      "original_log_sha256": "58b8b60a9d7e914d03fcfb313607243bb901fd26901c31b557095b7f642fca0d"
+    },
+    {
+      "module": "test_native_review_loader",
+      "tests": 8,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 3.281,
+      "original_log_sha256": "edb9443c050b86b412a333943c2e9f2f43c10a16c83586a21b3e2e90bc5cabdd"
+    },
+    {
+      "module": "test_native_workflow_delivery",
+      "tests": 9,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 1.531,
+      "original_log_sha256": "7b87f67ad14b079a3eefca6b84980975906c3c5d35b7f79d1c0e22dd80d7d2d0"
+    },
+    {
+      "module": "test_native_workflow_loader",
+      "tests": 12,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 0.484,
+      "original_log_sha256": "ba39c23da230bdd24e874dbd58d1ef203f51730c78f3359410196c57653b70fb"
+    },
+    {
+      "module": "test_preparation_claim",
+      "tests": 3,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 0.297,
+      "original_log_sha256": "f820681c0d8aba3d41928ebea0516f126b61075d1ea873e8cda5cf28e7f7d531"
+    },
+    {
+      "module": "test_recorded_explanation",
+      "tests": 3,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 0.468,
+      "original_log_sha256": "14332ce87054225c8f1feccd6aff8ae00a54904f5e2ca0edb2793ee568384c08"
+    },
+    {
+      "module": "test_transport_reconnect",
+      "tests": 13,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 0.344,
+      "original_log_sha256": "34c7c38de86813d446330c92483e883d02cc1701d51dd30b555d4b8e0313bb85"
+    },
+    {
+      "module": "transport.test_fixture_replay",
+      "tests": 22,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 50.047,
+      "original_log_sha256": "9d5390dbc04b1a39adba7146662175a142afebda17771b800f3898f56d54718d"
+    },
+    {
+      "module": "transport.test_reasoning_on",
+      "tests": 13,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 5.812,
+      "original_log_sha256": "1b2b36f6c80e1ff890292c133bea27e79acddfdd17a53cab7f26894e57906dd5"
+    },
+    {
+      "module": "transport.test_replay",
+      "tests": 22,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 49.953,
+      "original_log_sha256": "01e5fce16e18604ac5418d90fe99962c99ebbcc521f2499a7cdf60d2ef4d18e7"
+    },
+    {
+      "module": "transport.test_replay_provider",
+      "tests": 16,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 13.453,
+      "original_log_sha256": "b20368ee20c4cea1b2b0868e593d4dcc98bca6291f7f84e4b67e0ccdc019b351"
+    },
+    {
+      "module": "web.test_policy",
+      "tests": 16,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 0.313,
+      "original_log_sha256": "710780319b32d5af459a2cd46577c3d5127ccf84443fd275b3a6a3ff73369652"
+    },
+    {
+      "module": "web.test_workflow_policy",
+      "tests": 9,
+      "exit_code": 0,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "elapsed_seconds": 0.297,
+      "original_log_sha256": "17136baecb5847e0525c068abc8a7330a4fe26f46fc20d652695f0e30c50964f"
+    }
+  ]
+}
