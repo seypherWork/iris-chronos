@@ -14,6 +14,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import time
 import uuid
 
 BUNDLE = Path("/opt/chronos/bundle")
@@ -71,7 +72,7 @@ def verify_source(digest, application, *, bundle=BUNDLE, aliases=ALIASES):
                 actual = application_bundle.web._read(aliases[top] / rest)
             else:
                 # Verify the allowed root documents against the full bundle.
-                require(relative in {"README.md", "LICENSE"}, "UNEXPECTED_SOURCE_ROOT")
+                require(relative in {"README.md", "LICENSE", "module.xml"}, "UNEXPECTED_SOURCE_ROOT")
                 actual = application_bundle.web._read(bundle / relative)
             require(hashlib.sha256(actual).hexdigest() == expected, "MOUNT_ALIAS_DRIFT")
         require((aliases["deployment"] / "NativeInstall.cls").is_file(), "NATIVE_INSTALLER_MISSING")
@@ -163,6 +164,51 @@ def assess_result(result, action, deployment_id, origin, application):
     return result
 
 
+
+CONSOLE_MARKER = "CHRONOS_INSTALL_CONSOLE_READY:"
+STARTUP_REFUSAL = "Sign-on inhibited: Startup or Installation in progress"
+
+
+def wait_console(*, run=subprocess.run, monotonic=time.monotonic, sleep=time.sleep):
+    """Wait for console access before sending any installation program.
+
+    The repeated probe only prints a fixed marker/build. Retry exclusively the
+    exact temporary startup refusal; never put an installation in this loop.
+    """
+    deadline = monotonic() + 30
+    attempts = 0
+    env = dict(os.environ)
+    env.pop("CHRONOS_INSTALL_APPROVED", None)
+    while monotonic() < deadline:
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            break
+        attempts += 1
+        try:
+            p = run(["iris", "session", "IRIS", "-U", "%SYS"],
+                    input='write !,"' + CONSOLE_MARKER + '",$ZVersion,! halt\n',
+                    text=True, capture_output=True, encoding="utf-8", errors="strict",
+                    env=env, timeout=min(4, remaining), check=False)
+        except subprocess.TimeoutExpired:
+            raise InstallError("READONLY_CONSOLE_TIMEOUT") from None
+        except (OSError, UnicodeError):
+            raise InstallError("READONLY_CONSOLE_UNAVAILABLE") from None
+        require(monotonic() < deadline, "READONLY_CONSOLE_NOT_READY_WITHIN_THIRTY_SECONDS")
+        require(type(p.stdout) is str and type(p.stderr) is str and
+                len(p.stdout.encode("utf-8")) <= 16384 and len(p.stderr.encode("utf-8")) <= 16384,
+                "READONLY_CONSOLE_RESPONSE_INVALID")
+        rows = [line[len(CONSOLE_MARKER):] for line in p.stdout.splitlines()
+                if line.startswith(CONSOLE_MARKER)]
+        if (p.returncode == 0 and not p.stderr.strip() and len(rows) == 1 and
+                "2026.3.0AI (Build 154U)" in rows[0] and
+                not re.search(r"<[^<>\r\n]{1,160}>|\bERROR\b|Sign-on inhibited", p.stdout)):
+            return {"code": "CONSOLE_READY", "read_only": True, "attempts": attempts}
+        require(p.returncode == 239 and p.stdout.strip() == STARTUP_REFUSAL and
+                not p.stderr.strip(), "READONLY_CONSOLE_FAILED")
+        sleep(min(1, max(0, deadline - monotonic())))
+    raise InstallError("READONLY_CONSOLE_NOT_READY_WITHIN_THIRTY_SECONDS")
+
+
 def execute(action, deployment_id, origin, application, digest, *, authorize_id=None,
             run=subprocess.run):
     validate(deployment_id, origin, application, digest)
@@ -203,6 +249,7 @@ def main(argv=None):
         from native_health import engine
         health = engine()
         require(health.get("ready") is True, health.get("code", "ENGINE_UNAVAILABLE"))
+        wait_console()
         result = execute(args.action, args.deployment_id, args.origin, args.application,
                          args.manifest_sha256, authorize_id=args.authorize_id)
     except (InstallError, OSError) as exc:

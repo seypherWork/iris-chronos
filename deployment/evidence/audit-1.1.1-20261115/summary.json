@@ -1,0 +1,59 @@
+{
+  "schema": "chronos.audit-corrections.v1",
+  "version": "1.1.1",
+  "observed_utc": "2026-11-15T18:39:35.829408+00:00",
+  "scope": "LOCAL_SYNTHETIC_CASE_AND_SEPARATE_PATCH_CHECKS",
+  "corrections": [
+    "Accept the already hash-verified module.xml in the complete installer.",
+    "Read-only bounded console readiness before the one installation command.",
+    "Normalize four jury documents to LF.",
+    "Require native Workflow setup for the recommended HOLD route.",
+    "Make uncertain-chat wording conditional without changing the no-retry policy."
+  ],
+  "native_case": {
+    "engine_build": "2026.3.0AI.154.0",
+    "base_manifest_sha256": "5da5b4426fc59745e7b01752c58cf66cc003dd974ccecf93be4864571624b10b",
+    "instrumented_manifest_sha256": "346aaec3b351796b92886297afbe4755d940d5b687f0ba36b40d9d7e3c829ec5",
+    "observations_sha256": "de4c748ed3794428c8c069349853896274aeaaeb9bd9ef3e1225dc9c846fbc61",
+    "strict_portable_cli_pass": true,
+    "boundary": "DESTINATION_COMMIT_BEFORE_ADAPTER_RETURN",
+    "operation_id": "preview-op-prep-3165AA40-E121-11F1-AD4B-265E7BC546B8",
+    "attempt_id": "attempt-1",
+    "receipt_id": "r-ab6d208e65551754fd6114dc14349d4d02c75cae811e6f3f25fac49ce84432a4",
+    "submit_calls": 1,
+    "accepted_effects": 1,
+    "e1_calls": 1,
+    "c2_calls": 1,
+    "separate_neutral_warmups": 1,
+    "operator_ui_readback": true,
+    "logout_verified": true,
+    "access_disabled": true,
+    "four_services_stopped": true,
+    "extra_cleanup_restart": false,
+    "cut_exit": 137,
+    "oom_killed": false
+  },
+  "startup_patch": {
+    "installer_sha256": "2ce42113f6c9dc59e23dc6f4ed28c17fa84f42910c04e8ac6287fed6b523cbf8",
+    "readonly_native_component_observed": true,
+    "native_attempts": 1,
+    "native_temporary_refusal_exercised": false,
+    "fault_injection_tests": 9,
+    "model_calls": 0,
+    "account_changes": 0
+  },
+  "local_tests": {
+    "bundle_descriptor": 9,
+    "console_readiness": 9,
+    "web": 457,
+    "full_python_discovery": "INCOMPLETE_TIMEOUT_NOT_COUNTED_AS_PASS"
+  },
+  "qualification": [
+    "The complete native case preceded the final console-readiness addition and wording-only changes; they were checked separately. No final combined clean-install rerun is implied.",
+    "This is one local instrumented synthetic case, not an independent-machine or production-shipment guarantee.",
+    "The temporary startup refusal was injected in CPU tests; the new native probe was ready on its first attempt.",
+    "Before deliberate cut, one browser console error was retained. After restart, UI readback had zero console/page errors.",
+    "An inherited pre-cut READS_ONLY label was incorrect; actual counters record one preparation and one confirmation.",
+    "Historical 1.1.0 IPM loading and previous qualified/failed recovery runs remain separate and unchanged."
+  ]
+}

@@ -7,7 +7,7 @@ const TEXT={IDLE:"Open a completed decision to discuss its evidence.",CONNECTING
   SENDING:"Waiting for an explanation. No recovery is authorized by this question.",
   READY:"Ask about the decision or what happened to the shipment.",
   PENDING:"This question has no final answer yet. Read its original status; do not resend it.",
-  UNCERTAIN:"The response is uncertain. Read the original conversation to resolve it. No automatic retry.",
+  UNCERTAIN:"The response is uncertain. Read the original conversation to check whether a response was retained. This may remain uncertain. No automatic retry.",
   ERROR:"The conversation is unavailable. Read its original status before continuing.",
   BLOCKED:"The account or installation changed. Previous conversation details are hidden.",
   HIDDEN:"Conversation hidden. Resume to check your session and read the original conversation."};

@@ -113,6 +113,9 @@ test("preferences and approval questions only explain separate actions",async()=
 });
 test("lost reply blocks another question; empty original read cannot release a late request",async()=>{
   const s=setup();await s.open();s.wire.fail=true;await s.ask();
+  assert.match(s.root.textContent,/check whether a response was retained/);
+  assert.match(s.root.textContent,/This may remain uncertain/);
+  assert.equal(s.root.textContent.includes("to resolve it"),false);
   assert.equal(s.button("Ask Chronos").disabled,true);assert.equal(s.button("Close conversation view").disabled,true);
   await s.button("Read original conversation").dispatch("click");assert.equal(s.button("Ask Chronos").disabled,true);
   assert.equal(s.calls.filter(x=>x==="RECORD").length,1);s.panel.destroy();
