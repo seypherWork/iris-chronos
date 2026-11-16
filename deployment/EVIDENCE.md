@@ -1,3 +1,9 @@
+## Version 1.1.2: chat after human clarification
+
+The interface now recognizes the server's explicit `CLARIFICATION_SOURCE_REQUIRED` explanation after a native Workflow task. This is an informational read: it does not establish current eligibility or grant approval. The fresh preview remains mandatory. Unknown errors, changed identities and dispatch claims are still rejected.
+
+See the [verification report attached to release 1.1.2](https://github.com/seypherWork/iris-chronos/releases/tag/v1.1.2) for the exact archive, executed checks and remaining limits. The older evidence below retains its original version and scope; the 62-second video is a historical overview.
+
 ## Version 1.1.1 corrections and new recovery observation
 
 The [correction summary](evidence/audit-1.1.1-20261115/summary.json) records five audit fixes and their separate checks. The complete installer now accepts its hash-verified IPM descriptor and waits for a read-only console check before sending its installation command once. Four jury documents have clean line endings; the recommended HOLD route explicitly requires native Workflow setup. An uncertain chat response is described as something to inspect, without promising resolution or allowing an automatic retry.
@@ -28,9 +34,9 @@ To repeat discovery from the reviewed checkout, set `PYTHONPATH` to its `src` an
 
 These results concern separate validation experiments on **IRIS AI Hub Community
 2026.3.0AI.154.0**. They update the earlier “not yet exercised” status of native
-clarification and recorded rehearsal. They do not qualify a final combined
+clarification and recorded rehearsal. At the time, they did not qualify a final combined
 1.1.0 installation archive, establish independent reproducibility or change
-the public 1.0.2 release.
+the then-public 1.0.2 release.
 
 | Experiment | Observed result | Important boundary |
 | --- | --- | --- |
@@ -66,8 +72,8 @@ and the original strict topic metric are retained separately.
 - Receipt acceptance and simulator progression are distinct from physical
   delivery. A terminal simulated state can coexist with the persisted acceptance
   receipt without authorizing another shipment.
-- The latest restart result is a qualified local recovery experiment, not an
-  unassisted portable CLI pass or independent-machine result.
+- The Crash16 and Final17 restart results are qualified local recovery experiments, not
+  unassisted portable CLI passes or independent-machine results.
 - Historical six-case, video and trace evidence retain their original versions.
   They must not be added to these runs as if a single current bundle executed
   all of them.

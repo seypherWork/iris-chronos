@@ -1,4 +1,4 @@
-# IRIS Chronos
+# IRIS Chronos — 1.1.2
 
 **A checked recovery, a human decision, a receipt you can reopen.**
 
@@ -25,6 +25,13 @@ Inspect the separate fresh preview, including target and cost of 6 within budget
 The case chat uses familiar message bubbles, a multiline composer and a visible pending state during the real request. Ask why B was proposed instead of A, whether chat changed anything, or to send again. Answers follow checked case evidence. Chat cannot change preferences, confirm, dispatch or resend. It displays validated answers rather than unverified streaming tokens.
 
 ## Installation and evidence
+
+## Version 1.1.2: chat after human clarification
+
+The interface now recognizes the server's explicit `CLARIFICATION_SOURCE_REQUIRED` explanation after a native Workflow task. This is an informational read: it does not establish current eligibility or grant approval. The fresh preview remains mandatory. Unknown errors, changed identities and dispatch claims are still rejected.
+
+See the [verification report attached to release 1.1.2](https://github.com/seypherWork/iris-chronos/releases/tag/v1.1.2) for the exact archive, executed checks and remaining limits. The older evidence below retains its original version and scope; the 62-second video is a historical overview.
+
 
 **Python validation update — 15 November 2026:** all **324 distributed Python tests passed in 24 isolated modules** on Windows, with zero failures, errors or skips (402.247 seconds). The tested files matched release 1.1.1. See the [results and sanitized logs](deployment/EVIDENCE.md#complete-python-regression-15-november-2026). These local tests are separate from the native IRIS, model and UI evidence below.
 

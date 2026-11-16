@@ -20,6 +20,8 @@ states. The model-free recorded route has its own native `earliest` rehearsal
 and four exact questions. See the [versioned evidence and limits](EVIDENCE.md#private-11-candidate-validation).
 These are separately scoped runs. The newest fresh installation exercised the current UI chat; one local instrumented portable interruption case passed, with the scope and separate final-patch checks recorded in EVIDENCE.md. It is not a required first review step.
 
+When returning from a preview or receipt to an already open chat, click **Resume conversation** before typing. This reads the existing conversation and current case context; it does not resend a question or approve a recovery.
+
 ## Short acceptance checklist
 
 | Order | Check before continuing |

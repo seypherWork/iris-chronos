@@ -29,7 +29,7 @@ export function conversationV2({exact,record,validText,validAnswer,hash,ident,in
     if(s.id==="current-review"){
       const common=["id","kind","decision_id","status","code","dispatch_authorized"];
       const bound=s.kind==="CURRENT_REVALIDATION_RESULT"?exact(s,[...common,"semantic_digest"])&&hash(s.semantic_digest):s.kind==="CURRENT_READ_ONLY_REVALIDATION"&&exact(s,[...common,"observed_us","input_digest"])&&integer(s.observed_us)&&s.observed_us>0&&hash(s.input_digest);
-      return bound&&s.dispatch_authorized===false&&((s.status==="REVIEWABLE"&&s.code==="HUMAN_PREVIEW_REQUIRED")||(["REJECTED","RECHECK_REQUIRED","ERROR"].includes(s.status)&&REASONS.includes(s.code)));
+      return bound&&s.dispatch_authorized===false&&((s.status==="REVIEWABLE"&&s.code==="HUMAN_PREVIEW_REQUIRED")||(s.status==="ERROR"&&s.code==="CLARIFICATION_SOURCE_REQUIRED")||(["REJECTED","RECHECK_REQUIRED","ERROR"].includes(s.status)&&REASONS.includes(s.code)));
     }
     if(s.id==="simulator-result"){
       const common=["id","kind","decision_id","operation_id","attempt_id","state","arrival","result_digest","time_unit","physical_delivery"];
